@@ -193,12 +193,8 @@ public abstract class Tree {
                 this.modifiers = new Modifiers();
         }
 
-        public boolean isStatic() {
-            return modifiers.isStatic();
-        }
-        public boolean isAbstract(){
-            return modifiers.isAbstract();
-        }
+        public boolean isStatic() { return modifiers.isStatic(); }
+        public boolean isAbstract(){ return modifiers.isAbstract(); }
 
         @Override
         public Object treeElementAt(int index) {
@@ -1548,8 +1544,8 @@ public abstract class Tree {
             this.code = code;
             this.pos = pos;
             flags = new ArrayList<>();
-            if (isStatic()) flags.add("STATIC");
-            else if(isAbstract()) flags.add("ABSTRACT");
+            if (code==1) flags.add("STATIC");
+            if (code==2) flags.add("ABSTRACT");
         }
 
         public Modifiers() {
@@ -1557,10 +1553,12 @@ public abstract class Tree {
         }
 
         public boolean isStatic() {
-            return (code & 1) == 1;
+            if(code==1)return true;
+            return false;
         }
         public boolean isAbstract() {
-            return code==2?true:false;
+            if(code==2)return true;
+            return false;
         }
 
         @Override
