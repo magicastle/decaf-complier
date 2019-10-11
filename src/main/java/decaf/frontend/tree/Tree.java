@@ -96,23 +96,13 @@ public abstract class Tree {
 
         @Override
         public Object treeElementAt(int index) {
-            if(isAbstract()){
-                return switch (index) {
-                    case 0 -> modifiers;
-                    case 1 -> id;
-                    case 2 -> parent;
-                    case 3 -> fields;
-                    default -> throw new IndexOutOfBoundsException(index);
-                };
-            }
-            else
-                return switch (index) {
-                    case 0 -> modifiers;
-                    case 1 -> id;
-                    case 2 -> parent;
-                    case 3 -> fields;
-                    default -> throw new IndexOutOfBoundsException(index);
-                };
+            return switch (index) {
+                case 0 -> modifiers;
+                case 1 -> id;
+                case 2 -> parent;
+                case 3 -> fields;
+                default -> throw new IndexOutOfBoundsException(index);
+            };
         }
         @Override
         public int treeArity() {
