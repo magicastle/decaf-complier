@@ -20,7 +20,7 @@ import java.util.Optional;
 %token IF           ELSE        RETURN      BREAK       NEW
 %token PRINT        READ_INTEGER            READ_LINE
 %token BOOL_LIT     INT_LIT     STRING_LIT
-%token IDENTIFIER   AND         OR          STATIC      INSTANCE_OF
+%token IDENTIFIER   AND         OR          STATIC      INSTANCE_OF    ABSTRACT
 %token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
@@ -67,7 +67,7 @@ ClassList       :   ClassList ClassDef
                     }
                 ;
 
-ClassDef        :   CLASS Id ExtendsClause '{' FieldList '}'
+ClassDef        :   ABSTRACT ? CLASS Id ExtendsClause '{' FieldList '}'
                     {
                         $$ = svClass(new ClassDef($2.id, Optional.ofNullable($3.id), $5.fieldList, $1.pos));
                     }
@@ -112,6 +112,10 @@ MethodDef       :   STATIC Type Id '(' VarList ')' Block
                 |   Type Id '(' VarList ')' Block
                     {
                         $$ = svField(new MethodDef(false, $2.id, $1.type, $4.varList, $6.block, $2.pos));
+                    }
+                |   ABSTRACT Type Id '(' VarList ')' ';'
+                    {
+                        $$ = svField(new MethodDef(false, $2.id, $1.type, $4.varList, null, $2.pos));
                     }
                 ;
 
