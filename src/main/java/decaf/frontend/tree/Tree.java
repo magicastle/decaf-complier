@@ -58,18 +58,23 @@ public abstract class Tree {
      */
     public static class ClassDef extends TreeNode {
         // Tree elements
+        public Modifiers modifiers;
         public final Id id;
         public Optional<Id> parent;
         public final List<Field> fields;
         // For convenience
         public final String name;
 
-        public ClassDef(Id id, Optional<Id> parent, List<Field> fields, Pos pos) {
+        public ClassDef(Id id, Optional<Id> parent, List<Field> fields, Pos pos, boolean isAbstract) {
             super(Kind.CLASS_DEF, "ClassDef", pos);
             this.id = id;
             this.parent = parent;
             this.fields = fields;
             this.name = id.name;
+            if (isAbstract)
+                this.modifiers = new Modifiers(Modifiers.ABSTRACT, pos);
+            else
+                this.modifiers = new Modifiers();
         }
 
         public boolean hasParent() {
@@ -86,19 +91,32 @@ public abstract class Tree {
             return methods;
         }
 
-        @Override
-        public Object treeElementAt(int index) {
-            return switch (index) {
-                case 0 -> id;
-                case 1 -> parent;
-                case 2 -> fields;
-                default -> throw new IndexOutOfBoundsException(index);
-            };
-        }
+        //public boolean isStatic() { return modifiers.isStatic(); }
+        public boolean isAbstract(){ return modifiers.isAbstract(); }
 
         @Override
+        public Object treeElementAt(int index) {
+            if(isAbstract()){
+                return switch (index) {
+                    case 0 -> modifiers;
+                    case 1 -> id;
+                    case 2 -> parent;
+                    case 3 -> fields;
+                    default -> throw new IndexOutOfBoundsException(index);
+                };
+            }
+            else
+                return switch (index) {
+                    case 0 -> modifiers;
+                    case 1 -> id;
+                    case 2 -> parent;
+                    case 3 -> fields;
+                    default -> throw new IndexOutOfBoundsException(index);
+                };
+        }
+        @Override
         public int treeArity() {
-            return 3;
+            return 4;
         }
 
         @Override
