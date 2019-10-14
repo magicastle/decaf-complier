@@ -15,16 +15,17 @@ import java.util.Optional;
 %get token
 %semantic SemValue : semValue
 
-%token VOID         BOOL        INT         STRING      CLASS   VAR
+%token VOID         BOOL        INT         STRING      CLASS   VAR    FUN
 %token NULL         EXTENDS     THIS        WHILE       FOR
 %token IF           ELSE        RETURN      BREAK       NEW
 %token PRINT        READ_INTEGER            READ_LINE
 %token BOOL_LIT     INT_LIT     STRING_LIT
 %token IDENTIFIER   AND         OR          STATIC      INSTANCE_OF    ABSTRACT
-%token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
+%token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL      LAMBDADEF
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
 
+%left LAMBDADEF
 %left OR
 %left AND
 %nonassoc EQUAL NOT_EQUAL
@@ -35,8 +36,8 @@ import java.util.Optional;
 %nonassoc '[' '.'
 %nonassoc ')' EMPTY
 %nonassoc ELSE
-
 %start TopLevel
+
 
 %%
 
@@ -170,6 +171,31 @@ Type            :   INT
                     {
                         $$ = svType(new TArray($1.type, $1.type.pos));
                     }
+                |   Type '(' TypeList ')'
+                    {
+                        $$ = svType(new TLambda($1.type, $3.typeList, $1.pos));
+                    }
+                ;
+
+TypeList         :   TypeList1
+                    {
+                        $$ = $1;
+                    }
+                |   /* empty */
+                    {
+                        $$ = svTypes();
+                    }
+                ;
+
+TypeList1        :   TypeList1 ',' Type
+                    {
+                        $$ = $1;
+                        $$.typeList.add($3.type);
+                    }
+                |   Type
+                    {
+                        $$ = svTypes($1.type);
+                    }
                 ;
 
 // Statements
@@ -298,9 +324,9 @@ Expr            :   Literal
                     {
                         $$ = svExpr($1.lValue);
                     }
-                |   Receiver Id '(' ExprList ')'
+                |   Expr '(' ExprList ')'
                     {
-                        $$ = svExpr(new Call(Optional.ofNullable($1.expr), $2.id, $4.exprList, $3.pos));
+                        $$ = svExpr(new Call($1.expr, $3.exprList, $2.pos));
                     }
                 |   Expr '+' Expr
                     {
@@ -389,6 +415,14 @@ Expr            :   Literal
                 |   '(' CLASS Id ')' Expr
                     {
                         $$ = svExpr(new ClassCast($5.expr, $3.id, $5.expr.pos));
+                    }
+                |   FUN '(' VarList ')' Block
+                    {
+                        $$ = svExpr(new LambdaBlock($3.varList, $5.block, $1.pos));
+                    }
+                |   FUN '(' VarList ')' LAMBDADEF Expr
+                    {
+                        $$ = svExpr(new LambdaExpr($3.varList, $6.expr, $1.pos));
                     }
                 ;
 

@@ -16,7 +16,8 @@ public abstract class Tree {
         T_INT, T_BOOL, T_STRING, T_VOID, T_CLASS, T_ARRAY,
         LOCAL_VAR_DEF, BLOCK, ASSIGN, EXPR_EVAL, SKIP, IF, WHILE, FOR, BREAK, RETURN, PRINT,
         INT_LIT, BOOL_LIT, STRING_LIT, NULL_LIT, VAR_SEL, INDEX_SEL, CALL,
-        THIS, UNARY_EXPR, BINARY_EXPR, READ_INT, READ_LINE, NEW_CLASS, NEW_ARRAY, CLASS_TEST, CLASS_CAST
+        THIS, UNARY_EXPR, BINARY_EXPR, READ_INT, READ_LINE, NEW_CLASS, NEW_ARRAY, CLASS_TEST, CLASS_CAST,
+        LAMBDA, T_LAMBDA,
     }
 
     /**
@@ -1460,29 +1461,31 @@ public abstract class Tree {
      */
     public static class Call extends Expr {
         // Tree elements
-        public VarSel receiver;
-        //public Optional<Expr> receiver;
-        //public Id method;
+//        public VarSel receiver;
+//        public Optional<Expr> receiver;
+//        public Id method;
+        public Expr receiver;
         public List<Expr> args;
         //
         public String methodName;
 
-        public Call(Optional<Expr> receiver, Id method, List<Expr> args, Pos pos) {
+        public Call(Expr expr, List<Expr> args, Pos pos) {
             super(Kind.CALL, "Call", pos);
 //            this.receiver = receiver;
 //            this.method = method;
-            this.receiver=new VarSel(receiver, method, method.pos);
+            this.receiver = expr;
+//            this.receiver=new VarSel(receiver, method, method.pos);
             this.args = args;
-            this.methodName = method.name;
+            //this.methodName = method.name;
         }
 
-        public Call(Id method, List<Expr> args, Pos pos) {
-            this(Optional.empty(), method, args, pos);
-        }
-
-        public Call(Expr receiver, Id method, List<Expr> args, Pos pos) {
-            this(Optional.of(receiver), method, args, pos);
-        }
+//        public Call(Id method, List<Expr> args, Pos pos) {
+//            this(Optional.empty(), args, pos);
+//        }
+//
+//        public Call(Expr receiver, Id method, List<Expr> args, Pos pos) {
+//            this(Optional.of(receiver), args, pos);
+//        }
 
         /**
          * Set its receiver as {@code this}.
@@ -1490,15 +1493,16 @@ public abstract class Tree {
          * Reversed for type check.
          */
 
-//        public void setThis() {
-//            this.receiver = Optional.of(new This(pos));
-//        }
+        public void setThis() {
+            this.receiver = new This(pos);
+        }
 
         @Override
         public Object treeElementAt(int index) {
             return switch (index) {
+//                case 0 -> receiver;
+//                case 1 -> method;
                 case 0 -> receiver;
-                //case 1 -> method;
                 case 1 -> args;
                 default -> throw new IndexOutOfBoundsException(index);
             };
@@ -1578,6 +1582,107 @@ public abstract class Tree {
         @Override
         public String toString() {
             return String.join(" ", flags);
+        }
+    }
+
+    public static class LambdaExpr extends Expr
+    {
+        // Tree elements
+        public List<LocalVarDef> params;
+        public Expr expr;
+        // For convenience
+        public String name;
+
+        public LambdaExpr(List<LocalVarDef> params, Expr expr, Pos pos) {
+            super(Kind.LAMBDA, "Lambda", pos);
+            this.params = params;
+            this.expr = expr;
+        }
+
+        @Override
+        public Object treeElementAt(int index) {
+            return switch (index) {
+                case 0 -> params;
+                case 1 -> expr;
+                default -> throw new IndexOutOfBoundsException(index);
+            };
+        }
+
+        @Override
+        public int treeArity() {
+            return 2;
+        }
+
+        @Override
+        public <C> void accept(Visitor<C> v, C ctx) {
+            v.visitLambdaExpr(this, ctx);
+        }
+
+    }
+
+    public static class LambdaBlock extends Expr
+    {
+        // Tree elements
+        public List<LocalVarDef> params;
+        public Block body;
+        // For convenience
+        public String name;
+
+        public LambdaBlock(List<LocalVarDef> params, Block body, Pos pos) {
+            super(Kind.LAMBDA, "Lambda", pos);
+
+            this.params = params;
+            this.body = body;
+        }
+
+        @Override
+        public Object treeElementAt(int index) {
+            return switch (index) {
+                case 0 -> params;
+                case 1 -> body;
+                default -> throw new IndexOutOfBoundsException(index);
+            };
+        }
+
+        @Override
+        public int treeArity() {
+            return 2;
+        }
+
+        @Override
+        public <C> void accept(Visitor<C> v, C ctx) {
+            v.visitLambdaBlock(this, ctx);
+        }
+    }
+
+    public static class TLambda extends TypeLit {
+        // Tree element
+        public TypeLit returnType;
+        public List<TypeLit> params;
+
+        public TLambda(TypeLit typeLit, List<TypeLit> params, Pos pos) {
+            super(Kind.T_LAMBDA, "TLambda", pos);
+            this.returnType = typeLit;
+            this.params = params;
+        }
+
+        @Override
+        public Object treeElementAt(int index) {
+            return switch (index) {
+                case 0 -> returnType;
+                case 1 -> params;
+                default -> throw new IndexOutOfBoundsException(index);
+            };
+        }
+
+        @Override
+        public int treeArity() {
+            return 2;
+        }
+
+        @Override
+        public <C> void accept(Visitor<C> v, C ctx) {
+            v.visitTLambda(this, ctx);
         }
     }
 }
