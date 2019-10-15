@@ -207,26 +207,14 @@ public abstract class Tree {
 
         @Override
         public Object treeElementAt(int index) {
-            if(isAbstract()){
-                return switch (index) {
-                    case 0 -> modifiers;
-                    case 1 -> id;
-                    case 2 -> returnType;
-                    case 3 -> params;
-                    case 4 -> Optional.empty();
-                    default -> throw new IndexOutOfBoundsException(index);
-                };
-            }
-            else
-                return switch (index) {
-                    case 0 -> modifiers;
-                    case 1 -> id;
-                    case 2 -> returnType;
-                    case 3 -> params;
-                    case 4 -> body;
-                    default -> throw new IndexOutOfBoundsException(index);
-                };
-
+            return switch (index) {
+                case 0 -> modifiers;
+                case 1 -> id;
+                case 2 -> returnType;
+                case 3 -> params;
+                case 4 -> isAbstract() ==true ? Optional.empty():body;
+                default -> throw new IndexOutOfBoundsException(index);
+            };
         }
 
         @Override
@@ -1461,7 +1449,6 @@ public abstract class Tree {
      */
     public static class Call extends Expr {
         // Tree elements
-//        public VarSel receiver;
 //        public Optional<Expr> receiver;
 //        public Id method;
         public Expr receiver;
@@ -1474,9 +1461,7 @@ public abstract class Tree {
 //            this.receiver = receiver;
 //            this.method = method;
             this.receiver = expr;
-//            this.receiver=new VarSel(receiver, method, method.pos);
             this.args = args;
-            //this.methodName = method.name;
         }
 
 //        public Call(Id method, List<Expr> args, Pos pos) {
@@ -1549,11 +1534,8 @@ public abstract class Tree {
      */
     public static class Modifiers {
         public final int code;
-
         public final Pos pos;
-
         private List<String> flags;
-
         // Available modifiers:
         public static final int STATIC = 1;
         public static final int ABSTRACT = 2;
@@ -1630,7 +1612,6 @@ public abstract class Tree {
 
         public LambdaBlock(List<LocalVarDef> params, Block body, Pos pos) {
             super(Kind.LAMBDA, "Lambda", pos);
-
             this.params = params;
             this.body = body;
         }

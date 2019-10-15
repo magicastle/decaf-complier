@@ -15,15 +15,17 @@ import java.util.Optional;
 %get token
 %semantic SemValue : semValue
 
-%token VOID         BOOL        INT         STRING      CLASS   VAR    FUN
+%token VOID         BOOL        INT         STRING      CLASS
 %token NULL         EXTENDS     THIS        WHILE       FOR
 %token IF           ELSE        RETURN      BREAK       NEW
 %token PRINT        READ_INTEGER            READ_LINE
 %token BOOL_LIT     INT_LIT     STRING_LIT
-%token IDENTIFIER   AND         OR          STATIC      INSTANCE_OF    ABSTRACT
-%token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL      LAMBDADEF
+%token IDENTIFIER   AND         OR          STATIC      INSTANCE_OF
+%token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
+
+%token ABSTRACT     VAR    FUN   LAMBDADEF
 
 %left LAMBDADEF
 %left OR

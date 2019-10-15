@@ -72,13 +72,13 @@ BAD_ESC             = "\\"[^nrt\"\\]
 "fun"               { return keyword(Tokens.FUN);          }
 
     // operators, with more than one character
+"=>"                { return operator(Tokens.LAMBDADEF);     }
 "<="                { return operator(Tokens.LESS_EQUAL);    }
 ">="                { return operator(Tokens.GREATER_EQUAL); }
 "=="                { return operator(Tokens.EQUAL);         }
 "!="                { return operator(Tokens.NOT_EQUAL);     }
 "&&"                { return operator(Tokens.AND);           }
 "||"                { return operator(Tokens.OR);            }
-"=>"                { return operator(Tokens.LAMBDADEF);     }
 
 {SIMPLE_OPERATOR}   { return operator((int) yycharat(0));    }
 

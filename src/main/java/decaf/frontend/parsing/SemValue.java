@@ -149,7 +149,7 @@ class SemValue {
             case LVALUE -> "LVALUE: " + lValue;
             case ID -> "ID: " + id;
             case TEMPORARY -> "TEMPORARY";
-            case TYPE_LIST -> "TYPE_LIST:" + typeList;
+            case TYPE_LIST -> "TYPE_LIST: " + typeList;
         };
         return String.format("%-9s%s", pos, msg);
     }
