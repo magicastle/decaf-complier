@@ -3,7 +3,7 @@ package decaf.driver.error;
 import decaf.frontend.tree.Pos;
 
 /**
- * example：'length' can only be applied to arrays<br>
+ * example:'length' can only be applied to arrays<br>
  * PA2
  */
 public class BadLengthError extends DecafError {

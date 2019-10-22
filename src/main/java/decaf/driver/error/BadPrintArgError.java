@@ -3,7 +3,7 @@ package decaf.driver.error;
 import decaf.frontend.tree.Pos;
 
 /**
- * example：incompatible argument 3: int[] given, int/bool/string expected<br>
+ * example:incompatible argument 3: int[] given, int/bool/string expected<br>
  * 3表示发生错误的是第三个参数<br>
  * PA2
  */

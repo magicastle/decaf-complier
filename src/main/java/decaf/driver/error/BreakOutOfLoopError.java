@@ -3,7 +3,7 @@ package decaf.driver.error;
 import decaf.frontend.tree.Pos;
 
 /**
- * example：'break' is only allowed inside a loop<br>
+ * example:'break' is only allowed inside a loop<br>
  * PA2
  */
 public class BreakOutOfLoopError extends DecafError {
