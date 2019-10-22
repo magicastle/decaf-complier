@@ -70,12 +70,6 @@ ClassList       :   ClassList ClassDef
                     }
                 ;
 
-// ClassDef        :   CLASS Id ExtendsClause '{' FieldList '}'
-//                     {
-//                         $$ = svClass(new ClassDef($2.id, Optional.ofNullable($3.id), $5.fieldList, $1.pos));
-//                     }
-//                 ;
-
 ClassDef        :   ABSTRACT CLASS Id ExtendsClause '{' FieldList '}'
                     {
                         $$ = svClass(new ClassDef($3.id, Optional.ofNullable($4.id), $6.fieldList, $2.pos, true));
@@ -118,15 +112,6 @@ Var             :   Type Id
                     }
                 ;
 
-// MethodDef       :   STATIC Type Id '(' VarList ')' Block
-//                    {
-//                        $$ = svField(new MethodDef(true, $3.id, $2.type, $5.varList, $7.block, $3.pos));
-//                    }
-//                |   Type Id '(' VarList ')' Block
-//                    {
-//                        $$ = svField(new MethodDef(false, $2.id, $1.type, $4.varList, $6.block, $2.pos));
-//                    }
-//                ;
 
 MethodDef       :   STATIC Type Id '(' VarList ')' Block
                     {
@@ -342,10 +327,6 @@ Expr            :   Literal
                     {
                         $$ = svExpr($1.lValue);
                     }
-//                |   Receiver Id '(' ExprList ')'
-//                    {
-//                        $$ = svExpr(new Call(Optional.ofNullable($1.expr), $2.id, $4.exprList, $3.pos));
-//                    }
                 |   Expr '(' ExprList ')'
                     {
                         $$ = svExpr(new Call($1.expr, $3.exprList, $2.pos));

@@ -1490,9 +1490,8 @@ public abstract class Tree {
      */
     public static class Call extends Expr {
         // Tree elements
-//        public Optional<Expr> receiver;
+        public Optional<Expr> receiver;
 //        public Id method;
-        public Expr expr;
         public List<Expr> args;
         //
         public String methodName;
@@ -1500,11 +1499,10 @@ public abstract class Tree {
         public MethodSymbol symbol;
         public boolean isArrayLength = false;
 
-        public Call(Expr expr, List<Expr> args, Pos pos) {
+        public Call(Expr receiver, List<Expr> args, Pos pos) {
             super(Kind.CALL, "Call", pos);
-//            this.receiver = receiver;
+            this.receiver = Optional.ofNullable(receiver);
 //            this.method = method;
-            this.expr = expr;
             this.args = args;
 //            this.methodName = method.name;
         }
@@ -1524,16 +1522,15 @@ public abstract class Tree {
          */
         public void setThis() {
 //            this.receiver = Optional.of(new This(pos));
-            this.expr = new This(pos);
+            this.receiver = Optional.of(new This(pos));
         }
 
         @Override
         public Object treeElementAt(int index) {
             return switch (index) {
-//                case 0 -> receiver;
+                case 0 -> receiver;
 //                case 1 -> method;
 //                case 2 -> args;
-                case 0 -> expr;
                 case 1 -> args;
                 default -> throw new IndexOutOfBoundsException(index);
             };
