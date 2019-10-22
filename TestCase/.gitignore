@@ -1,0 +1,6 @@
+*.log
+*.DS_Store
+*/output/
+*.tac
+*.s
+*.class
