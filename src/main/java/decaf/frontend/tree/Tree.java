@@ -231,7 +231,7 @@ public abstract class Tree {
                 case 1 -> id;
                 case 2 -> returnType;
                 case 3 -> params;
-                case 4 -> isAbstract() ==true ? Optional.empty():body;
+                case 4 -> isAbstract() ? Optional.empty():body;
                 default -> throw new IndexOutOfBoundsException(index);
             };
         }

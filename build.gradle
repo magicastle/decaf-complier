@@ -14,13 +14,6 @@ sourceSets.main.java.srcDirs += files("$project.buildDir/generated-src/ll1pg")
 tasks.withType(JavaCompile).each {
     it.options.compilerArgs.add('--enable-preview')
 }
-tasks.withType(JavaCompile) {
-    options.encoding = "UTF-8"
-}
-
-compileJava.options.encoding = 'UTF-8'
-
-compileTestJava.options.encoding = 'UTF-8'
 
 repositories {
     mavenCentral()
