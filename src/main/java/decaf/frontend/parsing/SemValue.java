@@ -15,7 +15,7 @@ import java.util.List;
 class SemValue {
     enum Kind {
         TOKEN, CLASS, CLASS_LIST, FIELD, FIELD_LIST, VAR, VAR_LIST, TYPE, STMT, STMT_LIST, BLOCK, EXPR, EXPR_LIST,
-        LVALUE, ID, TEMPORARY,TYPE_LIST
+        LVALUE, ID, TEMPORARY, TYPE_LIST
     }
 
     /**

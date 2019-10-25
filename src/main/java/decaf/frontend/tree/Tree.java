@@ -1521,7 +1521,6 @@ public abstract class Tree {
          * Reversed for type check.
          */
         public void setThis() {
-//            this.receiver = Optional.of(new This(pos));
             this.receiver = Optional.of(new This(pos));
         }
 
