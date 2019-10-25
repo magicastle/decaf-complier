@@ -20,7 +20,7 @@ IDENTIFIER   AND         OR          STATIC      INSTANCE_OF
 LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
 '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
-ABSTRACT     VAR    FUN   LAMBDADEF
+ABSTRACT     VAR    FUN   EQUAL_GREATER
 
 %%
 

@@ -72,7 +72,7 @@ BAD_ESC             = "\\"[^nrt\"\\]
 "fun"               { return keyword(Tokens.FUN);          }
 
     // operators, with more than one character
-"=>"                { return operator(Tokens.LAMBDADEF);     }
+"=>"                { return operator(Tokens.EQUAL_GREATER);     }
 "<="                { return operator(Tokens.LESS_EQUAL);    }
 ">="                { return operator(Tokens.GREATER_EQUAL); }
 "=="                { return operator(Tokens.EQUAL);         }

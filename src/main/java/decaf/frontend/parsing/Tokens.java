@@ -38,7 +38,7 @@ public interface Tokens {
     int ABSTRACT = 31;
     int VAR = 32;
     int FUN = 33;
-    int LAMBDADEF = 34;
+    int EQUAL_GREATER= 34;
 
     // MUST use ASCII code to encode a single-character token.
     // '!' (code=33)
