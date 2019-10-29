@@ -156,23 +156,61 @@ AtomType        :   INT
 Type            :   AtomType ArrayType
                     {
                         $$ = $1;
-                        for (int i = 0; i < $2.intVal; i++) {
-                            $$.type = new TArray($$.type, $1.type.pos);
+                        for (var sv: $2.thunkList) {
+                            if(sv.typeList != null) {
+                                $$.type = new TLambda($1.type, sv.typeList, $1.pos);
+                            }
+                            else {
+                                $$.type = new TArray($$.type, $1.type.pos);
+                            }
                         }
                     }
                 ;
 
 ArrayType       :   '[' ']' ArrayType
                     {
+                        var sv = new SemValue();
                         $$ = $3;
-                        $$.intVal++;
+                        $$.thunkList.add(0, sv);
+                    }
+                |   '(' TypeList ')' ArrayType
+                    {
+                        var sv = new SemValue();
+                        sv.typeList = $2.typeList;
+                        $$ = $4;
+                        $$.thunkList.add(0, sv);
                     }
                 |   /* empty */
                     {
                         $$ = new SemValue();
-                        $$.intVal = 0; // counter
+                        $$.thunkList = new ArrayList<>();
                     }
                 ;
+
+
+TypeList        :   Type TypeList1
+                    {
+                        $$ = $2;
+                        $$.typeList.add(0, $1.type);
+                    }
+                |   /* empty */
+                    {
+                        $$ = svTypes();
+                    }
+                ;
+
+
+TypeList1       :   ',' Type TypeList1
+                    {
+                        $$ = $3;
+                        $$.typeList.add(0, $2.type);
+                    }
+                |   /* empty */
+                    {
+                        $$ = svTypes();
+                    }
+                ;
+
 
 // Statements
 
@@ -249,6 +287,10 @@ SimpleStmt      :   Var Initializer
                         } else {
                             $$ = svStmt(new ExprEval($1.expr, $1.pos));
                         }
+                    }
+                |   VAR Id '=' Expr
+                    {
+                        $$ = svStmt(new LocalVarDef(null, $2.id, $3.pos, Optional.ofNullable($4.expr), $2.pos));
                     }
                 |   /* empty */
                     {
@@ -399,8 +441,20 @@ Expr            :   Expr1
                     {
                         $$ = $1;
                     }
+                |   FUN '(' VarList ')' Lambda
+                    {
+                        $$ = svExpr(new Lambda($3.varList, $5.expr, $5.block, $1.pos));
+                    }
                 ;
-
+Lambda          :   Block
+                    {
+                        $$ = $1;
+                    }
+                |   EQUAL_GREATER Expr
+                    {
+                        $$ = $2;
+                    }
+                ;
 Expr1           :   Expr2 ExprT1
                     {
                         $$ = buildBinaryExpr($1, $2.thunkList);
@@ -664,15 +718,6 @@ Expr9           :   Literal
                 |   Id
                     {
                         $$ = svExpr(new VarSel($1.id, $1.pos));
-                    }
-                |   Id ExprListOpt
-                    {
-                        if ($2.exprList != null) {
-//                            $$ = svExpr(new Call($1.id, $2.exprList, $2.pos));
-                            $$ = svExpr(new Call(new VarSel($1.id, $1.pos), $2.exprList,$2.pos));
-                        } else {
-                            $$ = svExpr(new VarSel($1.id, $1.pos));
-                        }
                     }
                 ;
 

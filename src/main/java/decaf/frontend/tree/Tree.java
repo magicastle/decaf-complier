@@ -1616,52 +1616,19 @@ public abstract class Tree {
         }
     }
 
-    public static class LambdaExpr extends Expr
+    public static class Lambda extends Expr
     {
         // Tree elements
         public List<LocalVarDef> params;
         public Expr expr;
-        // For convenience
-        public String name;
-
-        public LambdaExpr(List<LocalVarDef> params, Expr expr, Pos pos) {
-            super(Kind.LAMBDA, "Lambda", pos);
-            this.params = params;
-            this.expr = expr;
-        }
-
-        @Override
-        public Object treeElementAt(int index) {
-            return switch (index) {
-                case 0 -> params;
-                case 1 -> expr;
-                default -> throw new IndexOutOfBoundsException(index);
-            };
-        }
-
-        @Override
-        public int treeArity() {
-            return 2;
-        }
-
-        @Override
-        public <C> void accept(Visitor<C> v, C ctx) {
-            v.visitLambdaExpr(this, ctx);
-        }
-
-    }
-
-    public static class LambdaBlock extends Expr
-    {
-        // Tree elements
-        public List<LocalVarDef> params;
         public Block body;
         // For convenience
         public String name;
 
-        public LambdaBlock(List<LocalVarDef> params, Block body, Pos pos) {
+        public Lambda(List<LocalVarDef> params, Expr expr, Block body, Pos pos) {
             super(Kind.LAMBDA, "Lambda", pos);
             this.params = params;
+            this.expr = expr;
             this.body = body;
         }
 
@@ -1669,7 +1636,7 @@ public abstract class Tree {
         public Object treeElementAt(int index) {
             return switch (index) {
                 case 0 -> params;
-                case 1 -> body;
+                case 1 -> ( expr == null ) ? body : expr;
                 default -> throw new IndexOutOfBoundsException(index);
             };
         }
@@ -1681,8 +1648,9 @@ public abstract class Tree {
 
         @Override
         public <C> void accept(Visitor<C> v, C ctx) {
-            v.visitLambdaBlock(this, ctx);
+            v.visitLambda(this, ctx);
         }
+
     }
 
     public static class TLambda extends TypeLit {

@@ -24,10 +24,10 @@ import java.util.Optional;
 %token LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
-%token ABSTRACT     VAR    FUN   LAMBDADEF
+%token ABSTRACT     VAR    FUN   EQUAL_GREATER
 
 
-%left LAMBDADEF
+%left EQUAL_GREATER
 %left OR
 %left AND
 %left EQUAL NOT_EQUAL
@@ -421,11 +421,11 @@ Expr            :   Literal
                     }
                 |   FUN '(' VarList ')' Block
                     {
-                        $$ = svExpr(new LambdaBlock($3.varList, $5.block, $1.pos));
+                        $$ = svExpr(new Lambda($3.varList,null,  $5.block, $1.pos));
                     }
-                |   FUN '(' VarList ')' LAMBDADEF Expr
+                |   FUN '(' VarList ')' EQUAL_GREATER Expr
                     {
-                        $$ = svExpr(new LambdaExpr($3.varList, $6.expr, $1.pos));
+                        $$ = svExpr(new Lambda($3.varList, $6.expr, null, $1.pos));
                     }
                 ;
 
