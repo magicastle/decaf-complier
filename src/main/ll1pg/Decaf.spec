@@ -676,17 +676,6 @@ ExprT8          :   '[' Expr ']' ExprT8
                     }
                 ;
 
-ExprListOpt     :   '(' ExprList ')'
-                    {
-                        $$ = $2;
-                        $$.pos = $1.pos;
-                    }
-                |   /* empty */
-                    {
-                        $$ = new SemValue();
-                    }
-                ;
-
 Expr9           :   Literal
                     {
                         $$ = $1;
