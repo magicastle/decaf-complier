@@ -153,7 +153,7 @@ AtomType        :   INT
                     }
                 ;
 
-Type            :   AtomType ArrayType
+Type            :   AtomType ArrayFunType
                     {
                         $$ = $1;
                         for (var sv: $2.thunkList) {
@@ -167,13 +167,13 @@ Type            :   AtomType ArrayType
                     }
                 ;
 
-ArrayType       :   '[' ']' ArrayType
+ArrayFunType       :   '[' ']' ArrayFunType
                     {
                         var sv = new SemValue();
                         $$ = $3;
                         $$.thunkList.add(0, sv);
                     }
-                |   '(' TypeList ')' ArrayType
+                |   '(' TypeList ')' ArrayFunType
                     {
                         var sv = new SemValue();
                         sv.typeList = $2.typeList;
