@@ -39,7 +39,6 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     @Override
     public void visitTopLevel(Tree.TopLevel program, ScopeStack ctx) {
         var classes = new TreeMap<String, Tree.ClassDef>();
-
         // Check conflicting definitions. If any, ignore the redefined ones.
         for (var clazz : program.classes) {
             var earlier = classes.get(clazz.name);
@@ -88,6 +87,9 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         boolean found = false;
         for (var clazz : classes.values()) {
             if (clazz.name.equals("Main")) {
+                // Main 类不能是abstract
+                if(clazz.isAbstract)
+                    issue(new NoMainClassError());
                 var symbol = clazz.symbol.scope.find("main");
                 if (symbol.isPresent() && symbol.get().isMethodSymbol()) {
                     var method = (MethodSymbol) symbol.get();
@@ -250,7 +252,8 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         ctx.declare(symbol);
         method.symbol = symbol;
         ctx.open(formal);
-        method.body.accept(this, ctx);
+        if(method.body != null)
+            method.body.accept(this, ctx);
         ctx.close();
     }
 
