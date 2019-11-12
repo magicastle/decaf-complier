@@ -25,19 +25,21 @@ public final class ClassSymbol extends Symbol {
      */
     public final ClassScope scope;
 
-    public ClassSymbol(String name, ClassType type, ClassScope scope, Pos pos) {
+    public ClassSymbol(boolean isAbstract, String name, ClassType type, ClassScope scope, Pos pos) {
         super(name, type, pos);
         this.parentSymbol = Optional.empty();
         this.scope = scope;
         this.type = type;
+        this.isAbstract = isAbstract;
         scope.setOwner(this);
     }
 
-    public ClassSymbol(String name, ClassSymbol parentSymbol, ClassType type, ClassScope scope, Pos pos) {
+    public ClassSymbol(boolean isAbstract, String name, ClassSymbol parentSymbol, ClassType type, ClassScope scope, Pos pos) {
         super(name, type, pos);
         this.parentSymbol = Optional.of(parentSymbol);
         this.scope = scope;
         this.type = type;
+        this.isAbstract = isAbstract;
         scope.setOwner(this);
     }
 
@@ -67,9 +69,14 @@ public final class ClassSymbol extends Symbol {
         return main;
     }
 
+    public boolean isAbstract(){
+        return isAbstract;
+    }
+
     @Override
     protected String str() {
-        return "class " + name + parentSymbol.map(classSymbol -> " : " + classSymbol.name).orElse("");
+        String ABSTRACT = isAbstract ? "ABSTRACT " : "";
+        return  ABSTRACT + "class " + name + parentSymbol.map(classSymbol -> " : " + classSymbol.name).orElse("");
     }
 
     /**
@@ -101,4 +108,5 @@ public final class ClassSymbol extends Symbol {
     }
 
     private boolean main;
+    private boolean isAbstract;
 }

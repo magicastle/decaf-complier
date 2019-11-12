@@ -160,13 +160,13 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             var base = global.getClass(clazz.parent.get().name);
             var type = new ClassType(clazz.name, base.type);
             var scope = new ClassScope(base.scope);
-            var symbol = new ClassSymbol(clazz.name, base, type, scope, clazz.pos);
+            var symbol = new ClassSymbol(clazz.isAbstract, clazz.name, base, type, scope, clazz.pos);
             global.declare(symbol);
             clazz.symbol = symbol;
         } else {
             var type = new ClassType(clazz.name);
             var scope = new ClassScope();
-            var symbol = new ClassSymbol(clazz.name, type, scope, clazz.pos);
+            var symbol = new ClassSymbol(clazz.isAbstract, clazz.name, type, scope, clazz.pos);
             global.declare(symbol);
             clazz.symbol = symbol;
         }
@@ -243,7 +243,8 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                         ctx.declare(symbol);
                         method.symbol = symbol;
                         ctx.open(formal);
-                        method.body.accept(this, ctx);
+                        if(method.body != null)
+                            method.body.accept(this, ctx);
                         ctx.close();
                         //抽象方法被实现，从重载列表中移除
                         if(!method.isAbstract())
