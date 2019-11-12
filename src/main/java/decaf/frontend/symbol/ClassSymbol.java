@@ -6,6 +6,7 @@ import decaf.frontend.tree.Pos;
 import decaf.frontend.type.ClassType;
 import decaf.lowlevel.tac.ClassInfo;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.TreeSet;
 
@@ -18,6 +19,7 @@ public final class ClassSymbol extends Symbol {
 
     public final ClassType type;
 
+    public List<String> notOverride;
     /**
      * Associated class scope of this class.
      */

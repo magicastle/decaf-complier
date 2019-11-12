@@ -175,15 +175,21 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     @Override
     public void visitClassDef(Tree.ClassDef clazz, ScopeStack ctx) {
         if (clazz.resolved) return;
-
+        //重载列表
+        clazz.symbol.notOverride = new ArrayList<String>();
         if (clazz.hasParent()) {
             clazz.superClass.accept(this, ctx);
+            clazz.symbol.notOverride.addAll(clazz.superClass.symbol.notOverride);//继承父类重载列表
         }
 
         ctx.open(clazz.symbol.scope);
         for (var field : clazz.fields) {
             field.accept(this, ctx);
         }
+        //重载列表未清空，缺少abstract
+        if(!clazz.isAbstract && !clazz.symbol.notOverride.isEmpty())
+            issue(new NoAbstractError(clazz.pos, clazz.name));
+
         ctx.close();
         clazz.resolved = true;
     }
@@ -221,8 +227,14 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         if (earlier.isPresent()) {
             if (earlier.get().isMethodSymbol()) { // may be overriden
                 var suspect = (MethodSymbol) earlier.get();
-                if (suspect.domain() != ctx.currentScope() && !suspect.isStatic() && !method.isStatic()) {
+                if (suspect.domain() != ctx.currentScope() && !suspect.isStatic() && !method.isStatic())
+                {
                     // Only non-static methods can be overriden, but the type signature must be equivalent.
+                    if(method.isAbstract() && !suspect.isAbstract()){
+                        //抽象方法重载非抽象方法
+                        issue(new DeclConflictError(method.pos, method.name, earlier.get().pos));
+                        return;
+                    }
                     var formal = new FormalScope();
                     typeMethod(method, ctx, formal);
                     if (method.type.subtypeOf(suspect.type)) { // override success
@@ -233,6 +245,10 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                         ctx.open(formal);
                         method.body.accept(this, ctx);
                         ctx.close();
+                        //抽象方法被实现，从重载列表中移除
+                        if(!method.isAbstract())
+                            ctx.currentClass().notOverride.remove(method.name);
+
                     } else {
                         issue(new BadOverrideError(method.pos, method.name, suspect.owner.name));
                     }
@@ -255,6 +271,9 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         if(method.body != null)
             method.body.accept(this, ctx);
         ctx.close();
+        //加入重载列表（需要被重载）
+        if(method.isAbstract())
+            ctx.currentClass().notOverride.add(method.name);
     }
 
     private void typeMethod(Tree.MethodDef method, ScopeStack ctx, FormalScope formal) {

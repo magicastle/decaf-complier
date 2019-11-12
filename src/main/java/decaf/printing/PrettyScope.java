@@ -14,7 +14,7 @@ public final class PrettyScope extends PrettyPrinter<Scope> {
 
     @Override
     public void pretty(Scope scope) {
-        if(scope != null)//why scope can be null???
+        if(scope != null)//null???
         if (scope.isGlobalScope()) {
             var globalScope = (GlobalScope) scope;
             printer.println("GLOBAL SCOPE:");
