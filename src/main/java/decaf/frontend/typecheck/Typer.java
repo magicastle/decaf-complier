@@ -355,7 +355,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     return;
                 }
             }
-            Log.fine("%s",expr.toString());
             expr.type = BuiltInType.ERROR;
             issue(new UndeclVarError(expr.pos, expr.name));
             return;
@@ -402,8 +401,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         } else if (field.isEmpty()) {
             issue(new FieldNotFoundError(expr.pos, expr.name, ct.toString()));
         } else {
-            Log.fine("%shhh",expr.toString());
-
+            Log.fine("notclassfield:%s",expr.toString());
             issue(new NotClassFieldError(expr.pos, expr.name, ct.toString()));
         }
     }
@@ -575,6 +573,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                 stmt.symbol.type = rt;
         }else{
             if (lt.noError() && (lt.isFuncType() || !rt.subtypeOf(lt))) {
+                Log.fine("in visitAssign !!!!!!!!!!!!");
                 issue(new IncompatBinOpError(stmt.assignPos, lt.toString(), "=", rt.toString()));
             }
         }
