@@ -572,8 +572,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             else
                 stmt.symbol.type = rt;
         }else{
-            if (lt.noError() && (lt.isFuncType() || !rt.subtypeOf(lt))) {
-                Log.fine("in visitAssign !!!!!!!!!!!!");
+            if (lt.noError() && (!rt.subtypeOf(lt))) {
                 issue(new IncompatBinOpError(stmt.assignPos, lt.toString(), "=", rt.toString()));
             }
         }
