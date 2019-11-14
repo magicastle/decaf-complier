@@ -302,7 +302,8 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitLocalVarDef(Tree.LocalVarDef def, ScopeStack ctx) {
-        def.typeLit.accept(this, ctx);
+        if(def.typeLit != null)
+            def.typeLit.accept(this, ctx);
 
         var earlier = ctx.findConflict(def.name);
         if (earlier.isPresent()) {
@@ -311,13 +312,20 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         }
 
   //      def.typeLit.accept(this, ctx);
-        if (def.typeLit.type.eq(BuiltInType.VOID)) {
-            issue(new BadVarTypeError(def.pos, def.name));
-            return;
-        }
+        if(def.typeLit != null){
+            if (def.typeLit.type.eq(BuiltInType.VOID)) {
+                issue(new BadVarTypeError(def.pos, def.name));
+                return;
+            }
 
-        if (def.typeLit.type.noError()) {
-            var symbol = new VarSymbol(def.name, def.typeLit.type, def.id.pos);
+            if (def.typeLit.type.noError()) {
+                var symbol = new VarSymbol(def.name, def.typeLit.type, def.id.pos);
+                ctx.declare(symbol);
+                def.symbol = symbol;
+            }
+        }
+        else{//var 类型type为null
+            var symbol = new VarSymbol(def.name, null, def.id.pos);
             ctx.declare(symbol);
             def.symbol = symbol;
         }

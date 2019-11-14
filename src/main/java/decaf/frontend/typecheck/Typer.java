@@ -14,6 +14,7 @@ import decaf.frontend.type.BuiltInType;
 import decaf.frontend.type.ClassType;
 import decaf.frontend.type.Type;
 import decaf.lowlevel.log.IndentPrinter;
+import decaf.lowlevel.log.Log;
 import decaf.printing.PrettyScope;
 
 import java.util.Optional;
@@ -329,10 +330,10 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             var symbol = ctx.lookupBefore(expr.name, localVarDefPos.orElse(expr.pos));
             if (symbol.isPresent()) {
                 if (symbol.get().isVarSymbol()) {
-                    var var = (VarSymbol) symbol.get();
+                    var var = symbol.get();
                     expr.symbol = var;
                     expr.type = var.type;
-                    if (var.isMemberVar()) {
+                    if (((VarSymbol)var).isMemberVar()) {
                         if (ctx.currentMethod().isStatic()) {
                             issue(new RefNonStaticError(expr.pos, ctx.currentMethod().name, expr.name));
                         } else {
@@ -341,7 +342,12 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     }
                     return;
                 }
-
+                if(symbol.get().isMethodSymbol()){
+                    var method = (MethodSymbol) symbol.get();
+                    expr.symbol =symbol.get();
+                    expr.type = method.type;
+                    return;
+                }
                 if (symbol.get().isClassSymbol() && allowClassNameVar) { // special case: a class name
                     var clazz = (ClassSymbol) symbol.get();
                     expr.type = clazz.type;
@@ -349,7 +355,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     return;
                 }
             }
-
+            Log.fine("%s",expr.toString());
             expr.type = BuiltInType.ERROR;
             issue(new UndeclVarError(expr.pos, expr.name));
             return;
@@ -396,6 +402,8 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         } else if (field.isEmpty()) {
             issue(new FieldNotFoundError(expr.pos, expr.name, ct.toString()));
         } else {
+            Log.fine("%shhh",expr.toString());
+
             issue(new NotClassFieldError(expr.pos, expr.name, ct.toString()));
         }
     }
@@ -425,26 +433,29 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         Type rt;
         boolean thisClass = false;
 
-        if (expr.receiver.isPresent()) {
-            var receiver = expr.receiver.get();
+//        if (expr.func.isPresent()) {
+            var func = expr.func;
             allowClassNameVar = true;
-            receiver.accept(this, ctx);
+            func.accept(this, ctx);
             allowClassNameVar = false;
-            rt = receiver.type;
+            rt = func.type;
+            Log.fine("rt:%s",rt.toString());
 
-            if (receiver instanceof Tree.VarSel) {
-                var v1 = (Tree.VarSel) receiver;
+            if (func instanceof Tree.VarSel) {
+                var v1 = (Tree.VarSel) func;
                 if (v1.isClassName) {
                     // Special case: invoking a static method, like MyClass.foo()
                     typeCall(expr, false, v1.name, ctx, true);
                     return;
                 }
             }
-        } else {
-            thisClass = true;
-            expr.setThis();
-            rt = ctx.currentClass().type;
-        }
+//        } else {
+//            thisClass = true;
+//            expr.setThis();
+//            rt = ctx.currentClass().type;
+//            Log.fine("rt:%s",rt.toString());
+//
+//        }
 
         if (rt.noError()) {
             if (rt.isArrayType() && expr.methodName.equals("length")) { // Special case: array.length()
@@ -459,6 +470,8 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             if (rt.isClassType()) {
                 typeCall(expr, thisClass, ((ClassType) rt).name, ctx, false);
             } else {
+                Log.fine("%s",expr.toString());
+
                 issue(new NotClassFieldError(expr.pos, expr.methodName, rt.toString()));
             }
         }
@@ -554,9 +567,16 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         localVarDefPos = Optional.empty();
         var lt = stmt.symbol.type;
         var rt = initVal.type;
-
-        if (lt.noError() && (lt.isFuncType() || !rt.subtypeOf(lt))) {
-            issue(new IncompatBinOpError(stmt.assignPos, lt.toString(), "=", rt.toString()));
+        //var类型推导
+        if(lt == null){
+            if(rt.isVoidType())
+                issue(new BadVarTypeError(stmt.id.pos,stmt.id.name));
+            else
+                stmt.symbol.type = rt;
+        }else{
+            if (lt.noError() && (lt.isFuncType() || !rt.subtypeOf(lt))) {
+                issue(new IncompatBinOpError(stmt.assignPos, lt.toString(), "=", rt.toString()));
+            }
         }
     }
 

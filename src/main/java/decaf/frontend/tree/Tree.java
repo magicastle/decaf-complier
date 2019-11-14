@@ -4,6 +4,7 @@ import decaf.frontend.scope.GlobalScope;
 import decaf.frontend.scope.LocalScope;
 import decaf.frontend.symbol.ClassSymbol;
 import decaf.frontend.symbol.MethodSymbol;
+import decaf.frontend.symbol.Symbol;
 import decaf.frontend.symbol.VarSymbol;
 import decaf.frontend.type.FunType;
 import decaf.frontend.type.Type;
@@ -1048,7 +1049,7 @@ public abstract class Tree {
         // For convenience
         public String name;
         // For type check
-        public VarSymbol symbol;
+        public Symbol symbol;
         public boolean isClassName = false;
 
         public VarSel(Optional<Expr> receiver, Id variable, Pos pos) {
@@ -1494,7 +1495,7 @@ public abstract class Tree {
      */
     public static class Call extends Expr {
         // Tree elements
-        public Optional<Expr> receiver;
+        public Expr func;
 //        public Id method;
         public List<Expr> args;
         //
@@ -1503,9 +1504,9 @@ public abstract class Tree {
         public MethodSymbol symbol;
         public boolean isArrayLength = false;
 
-        public Call(Expr receiver, List<Expr> args, Pos pos) {
+        public Call(Expr expr, List<Expr> args, Pos pos) {
             super(Kind.CALL, "Call", pos);
-            this.receiver = Optional.ofNullable(receiver);
+            this.func =expr;
 //            this.method = method;
             this.args = args;
 //            this.methodName = method.name;
@@ -1525,13 +1526,13 @@ public abstract class Tree {
          * Reversed for type check.
          */
         public void setThis() {
-            this.receiver = Optional.of(new This(pos));
+            this.func = new This(pos);
         }
 
         @Override
         public Object treeElementAt(int index) {
             return switch (index) {
-                case 0 -> receiver;
+                case 0 -> func;
 //                case 1 -> method;
 //                case 2 -> args;
                 case 1 -> args;
