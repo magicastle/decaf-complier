@@ -3,6 +3,7 @@ package decaf.frontend.typecheck;
 import decaf.driver.Config;
 import decaf.driver.Phase;
 import decaf.driver.error.*;
+import decaf.frontend.scope.Scope;
 import decaf.frontend.scope.ScopeStack;
 import decaf.frontend.symbol.ClassSymbol;
 import decaf.frontend.symbol.MethodSymbol;
@@ -16,6 +17,7 @@ import decaf.printing.PrettyScope;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Optional;
 
 /**
@@ -103,8 +105,36 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         var lt = stmt.lhs.type;
         var rt = stmt.rhs.type;
 
-        if (lt.noError() && (lt.isFuncType() || !rt.subtypeOf(lt))) {
+        if (lt.noError() && (!rt.subtypeOf(lt))) {
             issue(new IncompatBinOpError(stmt.pos, lt.toString(), "=", rt.toString()));
+        }
+        /*不能对捕获的外层的 非类作用域 中的符号直接赋值，
+        * 但如果传入的是一个 对象或数组的 引用，可以通过该 引用 修改类的成员或数组元素。
+        */
+        if(lt.noError()){
+            var currFuncScope = ctx.FormalOrLambdaScope();
+            if(currFuncScope.isLambdaScope()&& stmt.lhs instanceof Tree.VarSel){
+                //直接赋值的情况（没有引用）
+                if(((Tree.VarSel) stmt.lhs).receiver.isEmpty()){
+                    //在lambda块作用域和类作用域之间查找该符号：
+                    ListIterator<Scope> iter = ctx.scopeStack.listIterator(ctx.scopeStack.size());
+                    //先追溯到所在的函数或lambdablock
+                    while(iter.hasPrevious()){
+                        var scope =iter.previous();
+                        if(scope == currFuncScope){
+                            break;
+                        }
+                    }
+                    //判断上一层如果不是类（说明这是在一个lambda block中）
+                    while (iter.hasPrevious()){
+                        var scope = iter.previous();
+                        if(!scope.isClassScope() && ((Tree.VarSel) stmt.lhs).symbol.domain()==scope){
+                            issue(new AssignToCapturedVarError(stmt.pos));
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 

@@ -203,7 +203,7 @@ public class ScopeStack {
         currentScope().declare(symbol);
     }
 
-    private Stack<Scope> scopeStack = new Stack<>();
+    public Stack<Scope> scopeStack = new Stack<>();
     private ClassSymbol currClass;
     private MethodSymbol currMethod;
 
