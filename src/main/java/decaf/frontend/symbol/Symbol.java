@@ -55,6 +55,10 @@ public abstract class Symbol implements Comparable<Symbol> {
         return false;
     }
 
+    public boolean isLambdaSymbol() {
+        return true;
+    }
+
     /**
      * Get string representation of a symbol, excluding the position.
      *

@@ -2,10 +2,7 @@ package decaf.frontend.tree;
 
 import decaf.frontend.scope.GlobalScope;
 import decaf.frontend.scope.LocalScope;
-import decaf.frontend.symbol.ClassSymbol;
-import decaf.frontend.symbol.MethodSymbol;
-import decaf.frontend.symbol.Symbol;
-import decaf.frontend.symbol.VarSymbol;
+import decaf.frontend.symbol.*;
 import decaf.frontend.type.FunType;
 import decaf.frontend.type.Type;
 import decaf.lowlevel.instr.Temp;
@@ -446,6 +443,8 @@ public abstract class Tree {
          * For type check: does this return a value?
          */
         public boolean returns = false;
+
+        public boolean isClose = false;
 
         public boolean isBlock() {
             return false;
@@ -1629,6 +1628,8 @@ public abstract class Tree {
         public Block body;
         // For convenience
         public String name;
+        // For type check
+        public LambdaSymbol symbol;
 
         public Lambda(List<LocalVarDef> params, Expr expr, Block body, Pos pos) {
             super(Kind.LAMBDA, "Lambda", pos);

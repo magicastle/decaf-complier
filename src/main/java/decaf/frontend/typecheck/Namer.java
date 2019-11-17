@@ -5,6 +5,7 @@ import decaf.driver.Phase;
 import decaf.driver.error.*;
 import decaf.frontend.scope.*;
 import decaf.frontend.symbol.ClassSymbol;
+import decaf.frontend.symbol.LambdaSymbol;
 import decaf.frontend.symbol.MethodSymbol;
 import decaf.frontend.symbol.VarSymbol;
 import decaf.frontend.tree.Tree;
@@ -12,6 +13,7 @@ import decaf.frontend.type.BuiltInType;
 import decaf.frontend.type.ClassType;
 import decaf.frontend.type.FunType;
 import decaf.frontend.type.Type;
+import decaf.lowlevel.log.Log;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -311,7 +313,6 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             return;
         }
 
-  //      def.typeLit.accept(this, ctx);
         if(def.typeLit != null){
             if (def.typeLit.type.eq(BuiltInType.VOID)) {
                 issue(new BadVarTypeError(def.pos, def.name));
@@ -328,6 +329,10 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             var symbol = new VarSymbol(def.name, null, def.id.pos);
             ctx.declare(symbol);
             def.symbol = symbol;
+        }
+        //lambda
+        if(def.initVal.isPresent()){
+            def.initVal.get().accept(this,ctx);
         }
     }
 
@@ -351,6 +356,81 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     @Override
     public void visitWhile(Tree.While loop, ScopeStack ctx) {
         loop.body.accept(this, ctx);
+    }
+
+    @Override
+    public void visitLambda(Tree.Lambda lambda, ScopeStack ctx){
+        var lambdaScope = new LambdaScope(ctx.currentScope());
+        typeLambda(lambda, ctx, lambdaScope);//解析参数
+
+        ctx.open(lambdaScope);
+
+        if(lambda.expr != null){
+            var localScope = new LocalScope(lambdaScope);
+            var symbol = new LambdaSymbol((FunType) lambda.type, lambdaScope, localScope, lambda.pos);
+            lambda.symbol = symbol;
+
+            ctx.open(localScope);
+            lambda.expr.accept(this, ctx);
+            ctx.close();
+
+            ctx.close();
+            ctx.declare(symbol);
+
+        }
+        if(lambda.body != null){
+            var symbol = new LambdaSymbol((FunType) lambda.type, lambdaScope, null, lambda.pos);
+            lambda.symbol = symbol;
+            lambda.body.accept(this, ctx);
+            ctx.close();
+            ctx.declare(symbol);
+        }
+
+    }
+
+    private void typeLambda(Tree.Lambda lambda, ScopeStack ctx, LambdaScope lambdaScope) {
+        ctx.open(lambdaScope);
+        var argTypes = new ArrayList<Type>();
+        for (var param : lambda.params) {
+            param.accept(this, ctx);
+            argTypes.add(param.typeLit.type);
+        }
+        if(lambda.expr != null)
+            lambda.type = new FunType(null,argTypes);
+        if(lambda.body != null)
+            lambda.type = new FunType(null, argTypes);
+        ctx.close();
+    }
+
+    @Override
+    public void visitAssign(Tree.Assign assign, ScopeStack ctx){
+        //lambda
+        assign.rhs.accept(this,ctx);
+    }
+
+    @Override
+    public void visitReturn(Tree.Return ret, ScopeStack ctx){
+        //lambda
+        if(ret.expr.isPresent()){
+            ret.expr.get().accept(this,ctx);
+        }
+    }
+
+    @Override
+    public void visitClassCast(Tree.ClassCast classCast, ScopeStack ctx){
+        classCast.obj.accept(this, ctx);
+    }
+
+    @Override
+    public void visitClassTest(Tree.ClassTest classTest, ScopeStack ctx) {
+        classTest.obj.accept(this,ctx);
+    }
+
+    @Override
+    public void visitPrint(Tree.Print print, ScopeStack ctx) {
+        for(var expr: print.exprs ){
+            expr.accept(this,ctx);
+        }
     }
 
 }

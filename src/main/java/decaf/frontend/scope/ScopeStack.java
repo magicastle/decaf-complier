@@ -50,6 +50,18 @@ public class ScopeStack {
         return scopeStack.peek();
     }
 
+
+    public Scope FormalOrLambdaScope(){
+        ListIterator<Scope> iter = scopeStack.listIterator(scopeStack.size());
+        while (iter.hasPrevious()) {
+            var scope = iter.previous();
+            if(scope.isLambdaScope()||scope.isFormalScope()){
+                return scope;
+            }
+        }
+        return null;
+    }
+
     /**
      * The innermost (top most on stack) class we now locate in.
      *
@@ -82,7 +94,7 @@ public class ScopeStack {
     public void open(Scope scope) {
         assert !scope.isGlobalScope();
         if (scope.isClassScope()) {
-            assert !currentScope().isFormalOrLocalScope();
+            assert !currentScope().isFormalOrLocalOrLambdaScope();
             var classScope = (ClassScope) scope;
             classScope.parentScope.ifPresent(this::open);
             currClass = classScope.getOwner();
@@ -146,8 +158,8 @@ public class ScopeStack {
      * @return innermost conflicting symbol (if any)
      */
     public Optional<Symbol> findConflict(String key) {
-        if (currentScope().isFormalOrLocalScope())
-            return findWhile(key, Scope::isFormalOrLocalScope, whatever -> true).or(() -> global.find(key));
+        if (currentScope().isFormalOrLocalOrLambdaScope())
+            return findWhile(key, Scope::isFormalOrLocalOrLambdaScope, whatever -> true).or(() -> global.find(key));
         return lookup(key);
     }
 

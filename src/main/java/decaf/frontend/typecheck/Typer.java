@@ -9,14 +9,13 @@ import decaf.frontend.symbol.MethodSymbol;
 import decaf.frontend.symbol.VarSymbol;
 import decaf.frontend.tree.Pos;
 import decaf.frontend.tree.Tree;
-import decaf.frontend.type.ArrayType;
-import decaf.frontend.type.BuiltInType;
-import decaf.frontend.type.ClassType;
-import decaf.frontend.type.Type;
+import decaf.frontend.type.*;
 import decaf.lowlevel.log.IndentPrinter;
 import decaf.lowlevel.log.Log;
 import decaf.printing.PrettyScope;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -88,6 +87,13 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         }
         ctx.close();
         block.returns = !block.stmts.isEmpty() && block.stmts.get(block.stmts.size() - 1).returns;
+        //设置close属性
+        for(var stmt: block.stmts){
+            if(stmt.isClose){
+                block.isClose = true;
+                break;
+            }
+        }
     }
 
     @Override
@@ -115,6 +121,10 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         stmt.falseBranch.ifPresent(b -> b.accept(this, ctx));
         // if-stmt returns a value iff both branches return
         stmt.returns = stmt.trueBranch.returns && stmt.falseBranch.isPresent() && stmt.falseBranch.get().returns;
+        //
+        if(ctx.FormalOrLambdaScope().isLambdaScope()){
+            stmt.isClose=stmt.trueBranch.isClose && stmt.falseBranch.isPresent() && stmt.falseBranch.get().isClose;
+        }
     }
 
     @Override
@@ -123,6 +133,10 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         loopLevel++;
         loop.body.accept(this, ctx);
         loopLevel--;
+        //
+        if(ctx.FormalOrLambdaScope().isLambdaScope()) {
+            loop.isClose=loop.body.isClose;
+        }
     }
 
     @Override
@@ -136,6 +150,10 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             stmt.accept(this, ctx);
         }
         loopLevel--;
+        //
+        if(ctx.FormalOrLambdaScope().isLambdaScope()) {
+            loop.isClose=loop.body.isClose;
+        }
         ctx.close();
     }
 
@@ -148,11 +166,18 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitReturn(Tree.Return stmt, ScopeStack ctx) {
-        var expected = ctx.currentMethod().type.returnType;
+        var scope = ctx.FormalOrLambdaScope();
         stmt.expr.ifPresent(e -> e.accept(this, ctx));
         var actual = stmt.expr.map(e -> e.type).orElse(BuiltInType.VOID);
-        if (actual.noError() && !actual.subtypeOf(expected)) {
-            issue(new BadReturnTypeError(stmt.pos, expected.toString(), actual.toString()));
+        if(scope.isFormalScope()){
+            var expected = ctx.currentMethod().type.returnType;
+            if (actual.noError() && !actual.subtypeOf(expected)) {
+                issue(new BadReturnTypeError(stmt.pos, expected.toString(), actual.toString()));
+            }
+        }
+        else if(scope.isLambdaScope()){
+            stmt.isClose = true;
+            typeListStack.get(typeListStack.size()-1).add(actual);
         }
         stmt.returns = stmt.expr.isPresent();
     }
@@ -401,7 +426,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         } else if (field.isEmpty()) {
             issue(new FieldNotFoundError(expr.pos, expr.name, ct.toString()));
         } else {
-            Log.fine("notclassfield:%s",expr.toString());
             issue(new NotClassFieldError(expr.pos, expr.name, ct.toString()));
         }
     }
@@ -437,7 +461,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             func.accept(this, ctx);
             allowClassNameVar = false;
             rt = func.type;
-            Log.fine("rt:%s",rt.toString());
 
             if (func instanceof Tree.VarSel) {
                 var v1 = (Tree.VarSel) func;
@@ -468,8 +491,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             if (rt.isClassType()) {
                 typeCall(expr, thisClass, ((ClassType) rt).name, ctx, false);
             } else {
-                Log.fine("%s",expr.toString());
-
                 issue(new NotClassFieldError(expr.pos, expr.methodName, rt.toString()));
             }
         }
@@ -578,6 +599,180 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         }
     }
 
+    @Override
+    public void visitLambda(Tree.Lambda lambda, ScopeStack ctx){
+        if(lambda.expr != null){
+            ctx.open(lambda.symbol.lambdaScope);
+            ctx.open(lambda.symbol.localScope);
+            lambda.expr.accept(this, ctx);
+            ctx.close();
+            ctx.close();
+            ((FunType)lambda.symbol.type).returnType = lambda.expr.type;
+        }
+        else if(lambda.body != null){
+            ctx.open(lambda.symbol.lambdaScope);
+            typeListStack.add(new ArrayList<Type>());
+            lambda.body.accept(this,ctx);
+            Type returnType = getReturnType(lambda.body);
+            typeListStack.remove(typeListStack.size()-1);
+            ctx.close();
+            ((FunType)lambda.symbol.type).returnType = returnType;
+            ((FunType)lambda.type).returnType = returnType;
+        }
+
+    }
+
     // Only usage: check if an initializer cyclically refers to the declared variable, e.g. var x = x + 1
     private Optional<Pos> localVarDefPos = Optional.empty();
+
+    private Type getReturnType(Tree.Block block){
+        if(typeListStack.get(typeListStack.size()-1).isEmpty()){
+            return BuiltInType.VOID;
+        }
+        else{
+            if(!block.isClose){
+                for(var type: typeListStack.get(typeListStack.size()-1)){
+                    if(!type.eq(BuiltInType.VOID)){
+                        issue(new MissingReturnError(block.pos));
+                        break;
+                    }
+                }
+            }
+            Type returnType = upperBound(typeListStack.get(typeListStack.size()-1));
+            if(returnType.eq(BuiltInType.ERROR))
+                issue(new IncompatRetTypeError(block.pos));
+            return returnType;
+        }
+    }
+
+    private Type upperBound(List<Type> list){
+        Type typek = null;
+        for(var type: list){
+            if(!type.eq(BuiltInType.NULL)){
+                typek = type;
+                break;
+            }
+        }
+
+        if(typek!=null && (typek.isBaseType()||typek.isVoidType() || typek.isArrayType())){
+            for(var type: list) {
+                if (!type.eq(typek))
+                    return BuiltInType.ERROR;
+            }
+            return typek;
+        }
+        else if(typek!=null && typek.isClassType()){
+            for(var type: list){
+                if(!type.subtypeOf(typek)){
+                    boolean findSuper = false;
+                    while(!((((ClassType)typek).superType).isEmpty())){
+                        typek = (((ClassType)typek).superType).get();
+                        if(type.subtypeOf(typek))
+                            findSuper = true;
+                            break;
+                    }
+                    if(!findSuper)
+                        return BuiltInType.ERROR;
+                }
+            }
+            return typek;
+        }
+        else if(typek!=null && typek.isFuncType()){
+            var retList=new ArrayList<Type>();
+            var argList=new ArrayList<ArrayList<Type>>();
+            int argsCount = ((FunType)typek).arity();
+
+            for(int i=0;i<argsCount;i++){
+                argList.add(new ArrayList<Type>());
+            }
+            for(var type: list){
+                if(!type.isFuncType()||!(((FunType)type).arity()==argsCount)) {
+                    return BuiltInType.ERROR;
+                }
+                else{
+                    retList.add(((FunType)type).returnType);
+                    for(int i=0;i<argsCount;i++) {
+                        argList.get(i).add(((FunType)type).argTypes.get(i));
+                    }
+                }
+            }
+            Type rt = upperBound(retList);
+            if(rt.eq(BuiltInType.ERROR)) {
+                return BuiltInType.ERROR;
+            }
+            var argst = new ArrayList<Type>();
+            for(var argList_i:argList){
+                Type argt = lowerBound(argList_i);
+                if(argt.eq(BuiltInType.ERROR))
+                    return BuiltInType.ERROR;
+                argst.add(argt);
+            }
+            return new FunType(rt,argst);
+        }
+        else if(typek == null)
+            return BuiltInType.NULL;
+        return BuiltInType.ERROR;
+    }
+
+    private Type lowerBound(List<Type> list) {
+        Type typek = null;
+
+        for (var type : list) {
+            if (!type.eq(BuiltInType.NULL)) {
+                typek = type;
+                break;
+            }
+        }
+        if (typek != null && (typek.isBaseType() || typek.isVoidType() || typek.isArrayType())) {
+            for (var type : list) {
+                if (!type.eq(typek))
+                    return BuiltInType.ERROR;
+            }
+            return typek;
+        } else if (typek != null && typek.isClassType()) {
+            for (var type : list) {
+                if (type.subtypeOf(typek)) {
+                    typek = type;
+                } else if (!typek.subtypeOf(type)) {
+                    return BuiltInType.ERROR;
+                }
+            }
+            return typek;
+        } else if (typek != null && typek.isFuncType()) {
+            var retList = new ArrayList<Type>();
+            var argList = new ArrayList<ArrayList<Type>>();
+            int argsCount = ((FunType) typek).arity();
+
+            for (int i = 0; i < argsCount; i++) {
+                argList.add(new ArrayList<Type>());
+            }
+            for (var type : list) {
+                if (!type.isFuncType() || !(((FunType) type).arity() == argsCount)) {
+                    return BuiltInType.ERROR;
+                } else {
+                    retList.add(((FunType) type).returnType);
+                    for (int i = 0; i < argsCount; i++) {
+                        argList.get(i).add(((FunType) type).argTypes.get(i));
+                    }
+                }
+            }
+
+            Type rt = lowerBound(retList);
+            if(rt.eq(BuiltInType.ERROR)) {
+                return BuiltInType.ERROR;
+            }
+            var argst = new ArrayList<Type>();
+            for(var argList_i:argList){
+                Type argt = upperBound(argList_i);
+                if(argt.eq(BuiltInType.ERROR))
+                    return BuiltInType.ERROR;
+                argst.add(argt);
+            }
+            return new FunType(rt,argst);
+        }else if(typek == null)
+            return BuiltInType.NULL;
+        return BuiltInType.ERROR;
+    }
+
+    private  List<List<Type>> typeListStack = new ArrayList<List<Type>>();
 }
