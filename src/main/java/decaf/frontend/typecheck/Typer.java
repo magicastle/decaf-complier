@@ -401,6 +401,12 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     }
                     return;
                 }
+                if (symbol.get().isClassSymbol() && allowClassNameVar) { // special case: a class name
+                    var clazz = (ClassSymbol) symbol.get();
+                    expr.type = clazz.type;
+                    expr.isClassName = true;
+                    return;
+                }
                 if(symbol.get().isMethodSymbol()){
                     var method = (MethodSymbol)symbol.get();
                     expr.symbol =method;
@@ -415,12 +421,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     }
                     return;
                 }
-                if (symbol.get().isClassSymbol() && allowClassNameVar) { // special case: a class name
-                    var clazz = (ClassSymbol) symbol.get();
-                    expr.type = clazz.type;
-                    expr.isClassName = true;
-                    return;
-                }
+
             }
             expr.type = BuiltInType.ERROR;
             issue(new UndeclVarError(expr.pos, expr.name));
@@ -511,7 +512,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     public void visitCall(Tree.Call expr, ScopeStack ctx) {
         //{a.}?f
         //求返回类型
-        expr.func.type = BuiltInType.ERROR;
+//        expr.func.type = BuiltInType.ERROR;
 
         expr.func.accept(this, ctx);//访问expr
         if (expr.func.type.hasError()) {
@@ -530,8 +531,9 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                 expr.type = BuiltInType.INT;
                 if (!expr.args.isEmpty())
                     issue(new BadLengthArgError(expr.pos, expr.args.size()));
+                return;
             }
-            return;
+
         }
         typeCall(expr, ctx);
     }
@@ -548,7 +550,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         // check signature compatibility
         var type=(FunType)call.func.type;
         if (type.arity() != args.size()) {
-            issue(new BadArgCountError(call.pos, call.isLambda? "" : ((Tree.VarSel)call.func).name, type.arity(), args.size()));
+            issue(new BadArgCountError(call.pos, call.isLambda ? "" : ((Tree.VarSel)call.func).name, type.arity(), args.size()));
         }
         var iter1 = type.argTypes.iterator();
         var iter2 = call.args.iterator();
