@@ -58,6 +58,10 @@ public final class MethodSymbol extends Symbol {
         return main;
     }
 
+    public boolean isMemberMethod() {
+        return definedIn.isClassScope();
+    }
+
     /**
      * Set as main function, by {@link decaf.frontend.typecheck.Namer}.
      */

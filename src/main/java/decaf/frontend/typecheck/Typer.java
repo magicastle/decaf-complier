@@ -398,9 +398,17 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     return;
                 }
                 if(symbol.get().isMethodSymbol()){
-                    var method = (MethodSymbol) symbol.get();
-                    expr.symbol =symbol.get();
+                    var method = (MethodSymbol)symbol.get();
+                    expr.symbol =method;
                     expr.type = method.type;
+                    if(method.isMemberMethod()){
+                        //
+                        if(ctx.currentMethod().isStatic()&&!method.isStatic()){
+                            issue(new RefNonStaticError(expr.pos, ctx.currentMethod().name,expr.name));
+                        }else{
+                            expr.setThis();
+                        }
+                    }
                     return;
                 }
                 if (symbol.get().isClassSymbol() && allowClassNameVar) { // special case: a class name
@@ -608,6 +616,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitLocalVarDef(Tree.LocalVarDef stmt, ScopeStack ctx) {
+        Log.fine("visitlocalvardef in Typer %s",stmt.pos);
         if (stmt.initVal.isEmpty()) return;
 
         var initVal = stmt.initVal.get();
@@ -631,6 +640,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitLambda(Tree.Lambda lambda, ScopeStack ctx){
+        Log.fine("visitLambda %s",lambda.pos);
         if(lambda.expr != null){
             ctx.open(lambda.symbol.lambdaScope);
             ctx.open(lambda.symbol.localScope);

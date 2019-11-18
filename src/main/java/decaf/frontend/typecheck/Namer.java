@@ -199,7 +199,6 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     @Override
     public void visitVarDef(Tree.VarDef varDef, ScopeStack ctx) {
         varDef.typeLit.accept(this, ctx);
-
         var earlier = ctx.findConflict(varDef.name);
         if (earlier.isPresent()) {
             if (earlier.get().isVarSymbol() && earlier.get().domain() != ctx.currentScope()) {
@@ -306,19 +305,14 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     public void visitLocalVarDef(Tree.LocalVarDef def, ScopeStack ctx) {
         if(def.typeLit != null)
             def.typeLit.accept(this, ctx);
-
         var earlier = ctx.findConflict(def.name);
         if (earlier.isPresent()) {
             issue(new DeclConflictError(def.pos, def.name, earlier.get().pos));
-            return;
         }
-
         if(def.typeLit != null){
             if (def.typeLit.type.eq(BuiltInType.VOID)) {
                 issue(new BadVarTypeError(def.pos, def.name));
-                return;
             }
-
             if (def.typeLit.type.noError()) {
                 var symbol = new VarSymbol(def.name, def.typeLit.type, def.id.pos);
                 ctx.declare(symbol);
@@ -431,6 +425,10 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         for(var expr: print.exprs ){
             expr.accept(this,ctx);
         }
+    }
+    @Override
+    public void visitExprEval(Tree.ExprEval exprEval, ScopeStack ctx) {
+            exprEval.expr.accept(this,ctx);
     }
 
 }
