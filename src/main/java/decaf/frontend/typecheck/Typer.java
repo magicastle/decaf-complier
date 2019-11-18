@@ -456,7 +456,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         if (receiver instanceof Tree.VarSel) {
             var v1 = (Tree.VarSel) receiver;
             if (v1.isClassName) {
-                if(field.isPresent() && field.get().isVarSymbol()||field.get().isMethodSymbol()&&((MethodSymbol)field.get()).isStatic()){
+                if(field.isPresent() && (field.get().isVarSymbol()||field.get().isMethodSymbol()&& !((MethodSymbol)field.get()).isStatic())){
                     issue(new NotClassFieldError(expr.pos, expr.name, ctx.getClass(v1.name).type.toString()));
                     return;
                 }
@@ -485,6 +485,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         else if (field.isEmpty()) {
             issue(new FieldNotFoundError(expr.pos, expr.name, ct.toString()));
         } else {
+
             issue(new NotClassFieldError(expr.pos, expr.name, ct.toString()));
         }
     }
