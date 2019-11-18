@@ -104,6 +104,10 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         stmt.rhs.accept(this, ctx);
         var lt = stmt.lhs.type;
         var rt = stmt.rhs.type;
+        // 不能对成员方法赋值
+        if(stmt.lhs instanceof Tree.VarSel && ((Tree.VarSel)stmt.lhs).isMemberMethodName) {
+            issue(new AssignToMemberMethodError(stmt.pos, ((Tree.VarSel)stmt.lhs).name));
+        }
 
         if (lt.noError() && (!rt.subtypeOf(lt))) {
             issue(new IncompatBinOpError(stmt.pos, lt.toString(), "=", rt.toString()));
@@ -402,7 +406,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     expr.symbol =method;
                     expr.type = method.type;
                     if(method.isMemberMethod()){
-                        //
+                        expr.isMemberMethodName = true;
                         if(ctx.currentMethod().isStatic()&&!method.isStatic()){
                             issue(new RefNonStaticError(expr.pos, ctx.currentMethod().name,expr.name));
                         }else{
@@ -423,7 +427,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             return;
         }
 
-        // has receiver
+// has receiver
         var receiver = expr.receiver.get();
         allowClassNameVar = true;
         receiver.accept(this, ctx);
@@ -431,26 +435,33 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         var rt = receiver.type;
         expr.type = BuiltInType.ERROR;
 
-        if (receiver instanceof Tree.VarSel) {
-            var v1 = (Tree.VarSel) receiver;
-            if (v1.isClassName) {
-                // special case like MyClass.foo: report error cannot access field 'foo' from 'class : MyClass'
-                issue(new NotClassFieldError(expr.pos, expr.name, ctx.getClass(v1.name).type.toString()));
-                return;
-            }
-        }
-
         if (!rt.noError()) {
             return;
         }
-
+        // Special case: array.length()
+        if (rt.isArrayType() && expr.name.equals("length")) {
+            expr.isArrayLength = true;
+            expr.type = new FunType(BuiltInType.INT, new ArrayList<Type>());
+            return;
+        }
         if (!rt.isClassType()) {
             issue(new NotClassFieldError(expr.pos, expr.name, rt.toString()));
             return;
         }
-
+        //receiver type is ClassType
         var ct = (ClassType) rt;
         var field = ctx.getClass(ct.name).scope.lookup(expr.name);
+        //成员变量和非静态成员函数不允许通过类名访问
+        if (receiver instanceof Tree.VarSel) {
+            var v1 = (Tree.VarSel) receiver;
+            if (v1.isClassName) {
+                if(field.isPresent() && field.get().isVarSymbol()||field.get().isMethodSymbol()&&((MethodSymbol)field.get()).isStatic()){
+                    issue(new NotClassFieldError(expr.pos, expr.name, ctx.getClass(v1.name).type.toString()));
+                    return;
+                }
+            }
+        }
+
         if (field.isPresent() && field.get().isVarSymbol()) {
             var var = (VarSymbol) field.get();
             if (var.isMemberVar()) {
@@ -461,7 +472,16 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     issue(new FieldNotAccessError(expr.pos, expr.name, ct.toString()));
                 }
             }
-        } else if (field.isEmpty()) {
+        }else if(field.isPresent() && field.get().isMethodSymbol()){
+            var method = (MethodSymbol)field.get();
+            if(method.isMemberMethod()){
+                expr.isMemberMethodName = true;
+                expr.symbol = method;
+                expr.type = method.type;
+            }
+            return;
+        }
+        else if (field.isEmpty()) {
             issue(new FieldNotFoundError(expr.pos, expr.name, ct.toString()));
         } else {
             issue(new NotClassFieldError(expr.pos, expr.name, ct.toString()));
@@ -489,95 +509,102 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitCall(Tree.Call expr, ScopeStack ctx) {
-        expr.type = BuiltInType.ERROR;
-        Type rt;
-        boolean thisClass = false;
+        //{a.}?f
+        //求返回类型
+        expr.func.type = BuiltInType.ERROR;
 
-//        if (expr.func.isPresent()) {
-            var func = expr.func;
-            allowClassNameVar = true;
-            func.accept(this, ctx);
-            allowClassNameVar = false;
-            rt = func.type;
-
-            if (func instanceof Tree.VarSel) {
-                var v1 = (Tree.VarSel) func;
-                if (v1.isClassName) {
-                    // Special case: invoking a static method, like MyClass.foo()
-                    typeCall(expr, false, v1.name, ctx, true);
-                    return;
-                }
-            }
-//        } else {
-//            thisClass = true;
-//            expr.setThis();
-//            rt = ctx.currentClass().type;
-//            Log.fine("rt:%s",rt.toString());
-//
-//        }
-
-        if (rt.noError()) {
-            if (rt.isArrayType() && expr.methodName.equals("length")) { // Special case: array.length()
-                if (!expr.args.isEmpty()) {
-                    issue(new BadLengthArgError(expr.pos, expr.args.size()));
-                }
+        expr.func.accept(this, ctx);//访问expr
+        if (expr.func.type.hasError()) {
+            expr.func.type = BuiltInType.ERROR;
+            return;
+        }
+        if (!expr.func.type.isFuncType()) {
+            issue(new NotCallableError(expr.pos, expr.func.type.toString()));
+            expr.func.type = BuiltInType.ERROR;
+            return;
+        }
+        if (expr.func instanceof Tree.VarSel) {
+            var v1 = (Tree.VarSel) expr.func;
+            if (v1.isArrayLength) {
                 expr.isArrayLength = true;
                 expr.type = BuiltInType.INT;
-                return;
+                if (!expr.args.isEmpty())
+                    issue(new BadLengthArgError(expr.pos, expr.args.size()));
             }
-
-            if (rt.isClassType()) {
-                typeCall(expr, thisClass, ((ClassType) rt).name, ctx, false);
-            } else {
-                issue(new NotClassFieldError(expr.pos, expr.methodName, rt.toString()));
-            }
+            return;
         }
+        typeCall(expr, ctx);
     }
 
-    private void typeCall(Tree.Call call, boolean thisClass, String className, ScopeStack ctx, boolean requireStatic) {
-        var clazz = thisClass ? ctx.currentClass() : ctx.getClass(className);
-        var symbol = clazz.scope.lookup(call.methodName);
-        if (symbol.isPresent()) {
-            if (symbol.get().isMethodSymbol()) {
-                var method = (MethodSymbol) symbol.get();
-                call.symbol = method;
-                call.type = method.type.returnType;
-                if (requireStatic && !method.isStatic()) {
-                    issue(new NotClassFieldError(call.pos, call.methodName, clazz.type.toString()));
-                    return;
-                }
+    private void typeCall(Tree.Call call, ScopeStack ctx) {
 
-                // Cannot call this's member methods in a static method
-                if (thisClass && ctx.currentMethod().isStatic() && !method.isStatic()) {
-                    issue(new RefNonStaticError(call.pos, ctx.currentMethod().name, method.name));
-                }
+        call.type = ((FunType)(call.func.type)).returnType;
 
-                // typing args
-                var args = call.args;
-                for (var arg : args) {
-                    arg.accept(this, ctx);
-                }
+        //访问参数列表
+        var args = call.args;
+        for(var arg: args)
+            arg.accept(this, ctx);
 
-                // check signature compatibility
-                if (method.type.arity() != args.size()) {
-                    issue(new BadArgCountError(call.pos, method.name, method.type.arity(), args.size()));
-                }
-                var iter1 = method.type.argTypes.iterator();
-                var iter2 = call.args.iterator();
-                for (int i = 1; iter1.hasNext() && iter2.hasNext(); i++) {
-                    Type t1 = iter1.next();
-                    Tree.Expr e = iter2.next();
-                    Type t2 = e.type;
-                    if (t2.noError() && !t2.subtypeOf(t1)) {
-                        issue(new BadArgTypeError(e.pos, i, t2.toString(), t1.toString()));
-                    }
-                }
-            } else {
-                issue(new NotClassMethodError(call.pos, call.methodName, clazz.type.toString()));
-            }
-        } else {
-            issue(new FieldNotFoundError(call.pos, call.methodName, clazz.type.toString()));
+        // check signature compatibility
+        var type=(FunType)call.func.type;
+        if (type.arity() != args.size()) {
+            issue(new BadArgCountError(call.pos, call.isLambda? "" : ((Tree.VarSel)call.func).name, type.arity(), args.size()));
         }
+        var iter1 = type.argTypes.iterator();
+        var iter2 = call.args.iterator();
+        for (int i = 1; iter1.hasNext() && iter2.hasNext(); i++) {
+            Type t1 = iter1.next();
+            Tree.Expr e = iter2.next();
+            Type t2 = e.type;
+            if (t2.noError() && !t2.subtypeOf(t1)) {
+                issue(new BadArgTypeError(e.pos, i, t2.toString(), t1.toString()));
+            }
+        }
+
+
+//        var clazz = thisClass ? ctx.currentClass() : ctx.getClass(className);
+//        var symbol = clazz.scope.lookup(call.methodName);
+//        if (symbol.isPresent()) {
+//            if (symbol.get().isMethodSymbol()) {
+//                var method = (MethodSymbol) symbol.get();
+//                call.symbol = method;
+//                call.type = method.type.returnType;
+//                if (requireStatic && !method.isStatic()) {
+//                    issue(new NotClassFieldError(call.pos, call.methodName, clazz.type.toString()));
+//                    return;
+//                }
+//
+//                // Cannot call this's member methods in a static method
+//                if (thisClass && ctx.currentMethod().isStatic() && !method.isStatic()) {
+//                    issue(new RefNonStaticError(call.pos, ctx.currentMethod().name, method.name));
+//                }
+//
+//                // typing args
+//                var args = call.args;
+//                for (var arg : args) {
+//                    arg.accept(this, ctx);
+//                }
+//
+//                // check signature compatibility
+//                if (method.type.arity() != args.size()) {
+//                    issue(new BadArgCountError(call.pos, method.name, method.type.arity(), args.size()));
+//                }
+//                var iter1 = method.type.argTypes.iterator();
+//                var iter2 = call.args.iterator();
+//                for (int i = 1; iter1.hasNext() && iter2.hasNext(); i++) {
+//                    Type t1 = iter1.next();
+//                    Tree.Expr e = iter2.next();
+//                    Type t2 = e.type;
+//                    if (t2.noError() && !t2.subtypeOf(t1)) {
+//                        issue(new BadArgTypeError(e.pos, i, t2.toString(), t1.toString()));
+//                    }
+//                }
+//            } else {
+//                issue(new NotClassMethodError(call.pos, call.methodName, clazz.type.toString()));
+//            }
+//        } else {
+//            issue(new FieldNotFoundError(call.pos, call.methodName, clazz.type.toString()));
+//        }
     }
 
     @Override
@@ -627,7 +654,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         var rt = initVal.type;
         //var类型推导
         if(lt == null){
-            if(rt.isVoidType())
+                if(rt.isVoidType())
                 issue(new BadVarTypeError(stmt.id.pos,stmt.id.name));
             else
                 stmt.symbol.type = rt;
@@ -751,7 +778,8 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         }
         else if(typek == null)
             return BuiltInType.NULL;
-        return BuiltInType.ERROR;
+        else
+            return BuiltInType.ERROR;
     }
 
     private Type lowerBound(List<Type> list) {

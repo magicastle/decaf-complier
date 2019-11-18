@@ -900,6 +900,7 @@ public abstract class Tree {
         public Type type;
         // For tac gen
         public Temp val;
+        public boolean isLambda = false;
 
         public Expr(Kind kind, String displayName, Pos pos) {
             super(kind, displayName, pos);
@@ -1050,6 +1051,8 @@ public abstract class Tree {
         // For type check
         public Symbol symbol;
         public boolean isClassName = false;
+        public boolean isMemberMethodName = false;
+        public boolean isArrayLength = false;
 
         public VarSel(Optional<Expr> receiver, Id variable, Pos pos) {
             super(Kind.VAR_SEL, "VarSel", pos);
@@ -1495,8 +1498,8 @@ public abstract class Tree {
     public static class Call extends Expr {
         // Tree elements
         public Expr func;
-//        public Id method;
         public List<Expr> args;
+
         //
         public String methodName;
         // For type check

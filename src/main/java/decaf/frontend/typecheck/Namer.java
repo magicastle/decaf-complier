@@ -363,6 +363,7 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             var localScope = new LocalScope(lambdaScope);
             var symbol = new LambdaSymbol((FunType) lambda.type, lambdaScope, localScope, lambda.pos);
             lambda.symbol = symbol;
+            lambda.isLambda = true;
 
             ctx.open(localScope);
             lambda.expr.accept(this, ctx);
@@ -375,6 +376,7 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         if(lambda.body != null){
             var symbol = new LambdaSymbol((FunType) lambda.type, lambdaScope, null, lambda.pos);
             lambda.symbol = symbol;
+            lambda.isLambda = true;
             lambda.body.accept(this, ctx);
             ctx.close();
             ctx.declare(symbol);
@@ -428,7 +430,12 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     }
     @Override
     public void visitExprEval(Tree.ExprEval exprEval, ScopeStack ctx) {
-            exprEval.expr.accept(this,ctx);
+        exprEval.expr.accept(this,ctx);
+    }
+
+    @Override
+    public void visitCall(Tree.Call call, ScopeStack ctx){
+        call.func.accept(this, ctx);
     }
 
 }
