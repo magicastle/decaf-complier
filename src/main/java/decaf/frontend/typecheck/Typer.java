@@ -303,6 +303,9 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         expr.rhs.accept(this, ctx);
         var t1 = expr.lhs.type;
         var t2 = expr.rhs.type;
+        //Log.fine("lhs %s",expr.lhs.displayName);
+        //Log.fine("rhs %s",expr.rhs.displayName);
+
         if (t1.noError() && t2.noError() && !compatible(expr.op, t1, t2)) {
             issue(new IncompatBinOpError(expr.pos, t1.toString(), Tree.opStr(expr.op), t2.toString()));
         }
@@ -388,41 +391,43 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             // a visible member var, and a class name.
             var symbol = ctx.lookupBefore(expr.name, localVarDefPos.orElse(expr.pos));
             if (symbol.isPresent()) {
-                if (symbol.get().isVarSymbol()) {
-                    var var = symbol.get();
-                    expr.symbol = var;
-                    expr.type = var.type;
-                    if (((VarSymbol)var).isMemberVar()) {
-                        if (ctx.currentMethod().isStatic()) {
-                            issue(new RefNonStaticError(expr.pos, ctx.currentMethod().name, expr.name));
-                        } else {
-                            expr.setThis();
+                if(!varListStack.contains(expr.name)){
+                    if (symbol.get().isVarSymbol()) {
+                        var var = symbol.get();
+                        expr.symbol = var;
+                        expr.type = var.type;
+                        if (((VarSymbol)var).isMemberVar()) {
+                            if (ctx.currentMethod().isStatic()) {
+                                issue(new RefNonStaticError(expr.pos, ctx.currentMethod().name, expr.name));
+                            } else {
+                                expr.setThis();
+                            }
                         }
+                        return;
                     }
-                    return;
-                }
-                if (symbol.get().isClassSymbol() && allowClassNameVar) { // special case: a class name
-                    var clazz = (ClassSymbol) symbol.get();
-                    expr.type = clazz.type;
-                    expr.isClassName = true;
-                    return;
-                }
-                if(symbol.get().isMethodSymbol()){
-                    var method = (MethodSymbol)symbol.get();
-                    expr.symbol =method;
-                    expr.type = method.type;
-                    if(method.isMemberMethod()){
-                        expr.isMemberMethodName = true;
-                        if(ctx.currentMethod().isStatic()&&!method.isStatic()){
-                            issue(new RefNonStaticError(expr.pos, ctx.currentMethod().name,expr.name));
-                        }else{
-                            expr.setThis();
+                    if (symbol.get().isClassSymbol() && allowClassNameVar) { // special case: a class name
+                        var clazz = (ClassSymbol) symbol.get();
+                        expr.type = clazz.type;
+                        expr.isClassName = true;
+                        return;
+                    }
+                    if(symbol.get().isMethodSymbol()){
+                        var method = (MethodSymbol)symbol.get();
+                        expr.symbol =method;
+                        expr.type = method.type;
+                        if(method.isMemberMethod()){
+                            expr.isMemberMethodName = true;
+                            if(ctx.currentMethod().isStatic()&&!method.isStatic()){
+                                issue(new RefNonStaticError(expr.pos, ctx.currentMethod().name,expr.name));
+                            }else{
+                                expr.setThis();
+                            }
                         }
+                        return;
                     }
-                    return;
                 }
-
             }
+
             expr.type = BuiltInType.ERROR;
             issue(new UndeclVarError(expr.pos, expr.name));
             return;
@@ -497,6 +502,10 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         var at = expr.array.type;
         var it = expr.index.type;
 
+        if(!at.noError()){
+            expr.type=BuiltInType.ERROR;
+            return;
+        }
         if (!at.isArrayType()) {
             issue(new NotArrayError(expr.array.pos));
             expr.type = BuiltInType.ERROR;
@@ -513,18 +522,21 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     public void visitCall(Tree.Call expr, ScopeStack ctx) {
         //{a.}?f
         //求返回类型
-//        expr.func.type = BuiltInType.ERROR;
+        //expr.func.type = BuiltInType.ERROR;
 
         expr.func.accept(this, ctx);//访问expr
+        //Log.fine("func %s",expr.func.toString());
         if (expr.func.type.hasError()) {
-            expr.func.type = BuiltInType.ERROR;
+            expr.type = BuiltInType.ERROR;
             return;
         }
+
         if (!expr.func.type.isFuncType()) {
             issue(new NotCallableError(expr.pos, expr.func.type.toString()));
-            expr.func.type = BuiltInType.ERROR;
+            expr.type = BuiltInType.ERROR;
             return;
         }
+
         if (expr.func instanceof Tree.VarSel) {
             var v1 = (Tree.VarSel) expr.func;
             if (v1.isArrayLength) {
@@ -536,6 +548,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             }
 
         }
+
         typeCall(expr, ctx);
     }
 
@@ -551,7 +564,9 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         // check signature compatibility
         var type=(FunType)call.func.type;
         if (type.arity() != args.size()) {
-            issue(new BadArgCountError(call.pos, call.isLambda ? "" : ((Tree.VarSel)call.func).name, type.arity(), args.size()));
+
+
+            issue(new BadArgCountError(call.pos, !(call.func instanceof Tree.VarSel) ? "" : ((Tree.VarSel)call.func).name, type.arity(), args.size(),!(call.func instanceof Tree.VarSel)));
         }
         var iter1 = type.argTypes.iterator();
         var iter2 = call.args.iterator();
@@ -646,19 +661,23 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitLocalVarDef(Tree.LocalVarDef stmt, ScopeStack ctx) {
-        Log.fine("visitlocalvardef in Typer %s",stmt.pos);
         if (stmt.initVal.isEmpty()) return;
-
+        varListStack.add(stmt.name);
         var initVal = stmt.initVal.get();
+
         localVarDefPos = Optional.ofNullable(stmt.id.pos);
         initVal.accept(this, ctx);
         localVarDefPos = Optional.empty();
+        varListStack.remove(varListStack.size()-1);
         var lt = stmt.symbol.type;
         var rt = initVal.type;
         //var类型推导
         if(lt == null){
-                if(rt.isVoidType())
+            if(rt.isVoidType()){
                 issue(new BadVarTypeError(stmt.id.pos,stmt.id.name));
+                stmt.symbol.type=BuiltInType.ERROR;
+                return;
+            }
             else
                 stmt.symbol.type = rt;
         }else{
@@ -670,7 +689,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitLambda(Tree.Lambda lambda, ScopeStack ctx){
-        Log.fine("visitLambda %s",lambda.pos);
         if(lambda.expr != null){
             ctx.open(lambda.symbol.lambdaScope);
             ctx.open(lambda.symbol.localScope);
@@ -846,4 +864,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     }
 
     private  List<List<Type>> typeListStack = new ArrayList<List<Type>>();
+
+    private List<String> varListStack = new ArrayList<String>();
 }

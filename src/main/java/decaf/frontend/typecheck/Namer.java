@@ -401,6 +401,7 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     @Override
     public void visitAssign(Tree.Assign assign, ScopeStack ctx){
         //lambda
+        assign.lhs.accept(this,ctx);
         assign.rhs.accept(this,ctx);
     }
 
@@ -428,6 +429,7 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             expr.accept(this,ctx);
         }
     }
+
     @Override
     public void visitExprEval(Tree.ExprEval exprEval, ScopeStack ctx) {
         exprEval.expr.accept(this,ctx);
@@ -435,7 +437,30 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitCall(Tree.Call call, ScopeStack ctx){
+        for(var arg : call.args)
+            arg.accept(this, ctx);
         call.func.accept(this, ctx);
     }
 
+    @Override
+    public  void visitBinary(Tree.Binary binary, ScopeStack ctx){
+        binary.lhs.accept(this, ctx);
+        binary.rhs.accept(this, ctx);
+    }
+
+    @Override
+    public void visitUnary(Tree.Unary expr, ScopeStack ctx) {
+        expr.operand.accept(this, ctx);
+    }
+
+    @Override
+    public void visitNewArray(Tree.NewArray expr, ScopeStack ctx) {
+        expr.length.accept(this, ctx);
+    }
+
+    @Override
+    public void visitIndexSel(Tree.IndexSel expr, ScopeStack ctx) {
+        expr.array.accept(this, ctx);
+        expr.index.accept(this, ctx);
+    }
 }
