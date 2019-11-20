@@ -343,12 +343,14 @@ public class Namer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitIf(Tree.If stmt, ScopeStack ctx) {
+        stmt.cond.accept(this,ctx);
         stmt.trueBranch.accept(this, ctx);
         stmt.falseBranch.ifPresent(b -> b.accept(this, ctx));
     }
 
     @Override
     public void visitWhile(Tree.While loop, ScopeStack ctx) {
+        loop.cond.accept(this, ctx);
         loop.body.accept(this, ctx);
     }
 

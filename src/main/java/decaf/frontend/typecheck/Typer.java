@@ -303,8 +303,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         expr.rhs.accept(this, ctx);
         var t1 = expr.lhs.type;
         var t2 = expr.rhs.type;
-        //Log.fine("lhs %s",expr.lhs.displayName);
-        //Log.fine("rhs %s",expr.rhs.displayName);
 
         if (t1.noError() && t2.noError() && !compatible(expr.op, t1, t2)) {
             issue(new IncompatBinOpError(expr.pos, t1.toString(), Tree.opStr(expr.op), t2.toString()));
@@ -444,7 +442,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         if (!rt.noError()) {
             return;
         }
-        // Special case: array.length()
+
         if (rt.isArrayType() && expr.name.equals("length")) {
             expr.isArrayLength = true;
             expr.type = new FunType(BuiltInType.INT, new ArrayList<Type>());
@@ -520,12 +518,8 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitCall(Tree.Call expr, ScopeStack ctx) {
-        //{a.}?f
         //求返回类型
-        //expr.func.type = BuiltInType.ERROR;
-
         expr.func.accept(this, ctx);//访问expr
-        //Log.fine("func %s",expr.func.toString());
         if (expr.func.type.hasError()) {
             expr.type = BuiltInType.ERROR;
             return;
@@ -546,7 +540,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     issue(new BadLengthArgError(expr.pos, expr.args.size()));
                 return;
             }
-
         }
 
         typeCall(expr, ctx);
@@ -561,10 +554,8 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         for(var arg: args)
             arg.accept(this, ctx);
 
-        // check signature compatibility
         var type=(FunType)call.func.type;
         if (type.arity() != args.size()) {
-
 
             issue(new BadArgCountError(call.pos, !(call.func instanceof Tree.VarSel) ? "" : ((Tree.VarSel)call.func).name, type.arity(), args.size(),!(call.func instanceof Tree.VarSel)));
         }
@@ -578,51 +569,6 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                 issue(new BadArgTypeError(e.pos, i, t2.toString(), t1.toString()));
             }
         }
-
-
-//        var clazz = thisClass ? ctx.currentClass() : ctx.getClass(className);
-//        var symbol = clazz.scope.lookup(call.methodName);
-//        if (symbol.isPresent()) {
-//            if (symbol.get().isMethodSymbol()) {
-//                var method = (MethodSymbol) symbol.get();
-//                call.symbol = method;
-//                call.type = method.type.returnType;
-//                if (requireStatic && !method.isStatic()) {
-//                    issue(new NotClassFieldError(call.pos, call.methodName, clazz.type.toString()));
-//                    return;
-//                }
-//
-//                // Cannot call this's member methods in a static method
-//                if (thisClass && ctx.currentMethod().isStatic() && !method.isStatic()) {
-//                    issue(new RefNonStaticError(call.pos, ctx.currentMethod().name, method.name));
-//                }
-//
-//                // typing args
-//                var args = call.args;
-//                for (var arg : args) {
-//                    arg.accept(this, ctx);
-//                }
-//
-//                // check signature compatibility
-//                if (method.type.arity() != args.size()) {
-//                    issue(new BadArgCountError(call.pos, method.name, method.type.arity(), args.size()));
-//                }
-//                var iter1 = method.type.argTypes.iterator();
-//                var iter2 = call.args.iterator();
-//                for (int i = 1; iter1.hasNext() && iter2.hasNext(); i++) {
-//                    Type t1 = iter1.next();
-//                    Tree.Expr e = iter2.next();
-//                    Type t2 = e.type;
-//                    if (t2.noError() && !t2.subtypeOf(t1)) {
-//                        issue(new BadArgTypeError(e.pos, i, t2.toString(), t1.toString()));
-//                    }
-//                }
-//            } else {
-//                issue(new NotClassMethodError(call.pos, call.methodName, clazz.type.toString()));
-//            }
-//        } else {
-//            issue(new FieldNotFoundError(call.pos, call.methodName, clazz.type.toString()));
-//        }
     }
 
     @Override
