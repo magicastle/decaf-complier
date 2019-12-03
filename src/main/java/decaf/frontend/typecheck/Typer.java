@@ -385,13 +385,13 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     @Override
     public void visitVarSel(Tree.VarSel expr, ScopeStack ctx) {
         if (expr.receiver.isEmpty()) {
-            // Variable, which should be complicated since a legal variable could refer to a local var,
-            // a visible member var, and a class name.
+            // Variable, which should be complicated since a legal variable could refer to
+            // a local var, a visible member var, and a class name.
             var symbol = ctx.lookupBefore(expr.name, localVarDefPos.orElse(expr.pos));
             if (symbol.isPresent()) {
                 if(!varListStack.contains(expr.name)){
                     if (symbol.get().isVarSymbol()) {
-                        var var = symbol.get();
+                        var var = (VarSymbol)symbol.get();  //改回varSymbol???
                         expr.symbol = var;
                         expr.type = var.type;
                         if (((VarSymbol)var).isMemberVar()) {
@@ -411,7 +411,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     }
                     if(symbol.get().isMethodSymbol()){
                         var method = (MethodSymbol)symbol.get();
-                        expr.symbol =method;
+//                        expr.symbol =method;  //FLAG
                         expr.type = method.type;
                         if(method.isMemberMethod()){
                             expr.isMemberMethodName = true;
@@ -480,7 +480,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             var method = (MethodSymbol)field.get();
             if(method.isMemberMethod()){
                 expr.isMemberMethodName = true;
-                expr.symbol = method;
+//                expr.symbol = method;  //FLAG
                 expr.type = method.type;
             }
             return;
