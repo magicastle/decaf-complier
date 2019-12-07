@@ -1049,8 +1049,8 @@ public abstract class Tree {
         // For convenience
         public String name;
         // For type check
-//        public Symbol symbol;
-        public VarSymbol symbol;
+        public Symbol symbol;
+//        public VarSymbol symbol;
         public boolean isClassName = false;
         public boolean isMemberMethodName = false;
         public boolean isArrayLength = false;

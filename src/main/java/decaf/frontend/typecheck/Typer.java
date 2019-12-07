@@ -391,7 +391,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             if (symbol.isPresent()) {
                 if(!varListStack.contains(expr.name)){
                     if (symbol.get().isVarSymbol()) {
-                        var var = (VarSymbol)symbol.get();  //改回varSymbol???
+                        var var = symbol.get();  //FLAG
                         expr.symbol = var;
                         expr.type = var.type;
                         if (((VarSymbol)var).isMemberVar()) {
@@ -411,7 +411,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
                     }
                     if(symbol.get().isMethodSymbol()){
                         var method = (MethodSymbol)symbol.get();
-//                        expr.symbol =method;  //FLAG
+                        expr.symbol =method;  //FLAG
                         expr.type = method.type;
                         if(method.isMemberMethod()){
                             expr.isMemberMethodName = true;
@@ -480,7 +480,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             var method = (MethodSymbol)field.get();
             if(method.isMemberMethod()){
                 expr.isMemberMethodName = true;
-//                expr.symbol = method;  //FLAG
+                expr.symbol = method;  //FLAG
                 expr.type = method.type;
             }
             return;
