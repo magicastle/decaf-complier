@@ -1,1 +1,1 @@
-gradle build && java -jar --enable-preview build/libs/decaf.jar TestCases/S1/test.decaf -t PA1 && java -jar --enable-preview build/libs/decaf.jar TestCases/S1/test.decaf -t PA2
+gradle build && java -jar --enable-preview build/libs/decaf.jar TestCases/test.decaf -t PA1 && java -jar --enable-preview build/libs/decaf.jar TestCases/test.decaf -t PA2 && java -jar --enable-preview build/libs/decaf.jar TestCases/test.decaf -t PA3
