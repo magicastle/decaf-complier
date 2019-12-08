@@ -1,5 +1,6 @@
 package decaf.frontend.tacgen;
 
+import decaf.frontend.symbol.MethodSymbol;
 import decaf.frontend.symbol.VarSymbol;
 import decaf.frontend.tree.Tree;
 import decaf.frontend.tree.Visitor;
@@ -269,6 +270,14 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
                 expr.val = symbol.temp;
             }
         }
+        else if(expr.symbol.isMethodSymbol()){
+            var symbol = (MethodSymbol)expr.symbol;
+            if(symbol.isMemberMethod()){
+                var object = expr.receiver.get();
+                object.accept(this,mv);
+                expr.val = object.val;
+            }
+        }
     }
 
     @Override
@@ -307,7 +316,6 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
         expr.args.forEach(arg -> arg.accept(this, mv));
         var temps = new ArrayList<Temp>();
         expr.args.forEach(arg -> temps.add(arg.val));
-
         if (expr.symbol.isStatic()) {
             if (expr.symbol.type.returnType.isVoidType()) {
                 mv.visitStaticCall(expr.symbol.owner.name, expr.symbol.name, temps);

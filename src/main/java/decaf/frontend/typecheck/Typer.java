@@ -549,6 +549,8 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
         call.type = ((FunType)(call.func.type)).returnType;
 
+        call.symbol = (MethodSymbol) ((Tree.VarSel)(call.func)).symbol;
+
         //访问参数列表
         var args = call.args;
         for(var arg: args)
