@@ -259,7 +259,24 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
     }
 
     @Override
+    default void visitLambda(Tree.Lambda expr, FuncVisitor mv){
+        var vtbl = mv.visitLoadVTable("Lambda_orz");
+        var entry = mv.visitLoadFrom(vtbl, mv.ctx.getOffset("Lambda_orz", "lambda" + expr.pos));
+        var size = 12 + expr.capture.size() * 4;
+
+        var memory = mv.visitIntrinsicCall(Intrinsic.ALLOCATE, true, mv.visitLoad(size));
+        mv.visitStoreTo(memory, 0, entry);
+        mv.visitStoreTo(memory, 4, mv.visitLoad(1 + expr.capture.size()));
+        mv.visitStoreTo(memory, 8, expr.inStatic ? mv.visitLoad(0) : mv.getArgTemp(0));
+        for (int i = 0;i < expr.capture.size();i ++) {
+            mv.visitStoreTo(memory, 12 + 4 * i, expr.capture.get(i).temp);
+        }
+        expr.val = memory;
+    }
+
+    @Override
     default void visitVarSel(Tree.VarSel expr, FuncVisitor mv) {
+        System.out.println("visitVarsel");
         if(expr.symbol.isVarSymbol()){
             var symbol = (VarSymbol)expr.symbol;
             if (symbol.isMemberVar()) {
@@ -270,12 +287,29 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
                 expr.val = symbol.temp;
             }
         }
-        else if(expr.symbol.isMethodSymbol()){
+        if (expr.symbol instanceof MethodSymbol) {
             var symbol = (MethodSymbol)expr.symbol;
-            if(symbol.isMemberMethod()){
-                var object = expr.receiver.get();
-                object.accept(this,mv);
-                expr.val = object.val;
+            if (symbol.isMemberMethod()) {
+                if (symbol.isStatic()) {
+                    System.out.println("Static");
+                    var vtbl = mv.visitLoadVTable("Static_orz");
+                    var entry = mv.visitLoadFrom(vtbl, mv.ctx.getOffset("Static_orz", expr.name));
+                    var memory = mv.visitIntrinsicCall(Intrinsic.ALLOCATE, true, mv.visitLoad(8));
+                    mv.visitStoreTo(memory, 0, entry);
+                    mv.visitStoreTo(memory, 4, mv.visitLoad(0));
+                    expr.val = memory;
+                } else {
+                    System.out.println("notStatic");
+                    expr.receiver.get().accept(this, mv);
+                    var object = expr.receiver.get().val;
+                    var vtbl = mv.visitLoadFrom(object);
+                    var entry = mv.visitLoadFrom(vtbl, mv.ctx.getOffset(((MethodSymbol) expr.symbol).owner.name, expr.name));
+                    var memory = mv.visitIntrinsicCall(Intrinsic.ALLOCATE, true, mv.visitLoad(12));
+                    mv.visitStoreTo(memory, 0, entry);
+                    mv.visitStoreTo(memory, 4, mv.visitLoad(1));
+                    mv.visitStoreTo(memory, 8, object);
+                    expr.val = memory;
+                }
             }
         }
     }
@@ -306,6 +340,8 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
 
     @Override
     default void visitCall(Tree.Call expr, FuncVisitor mv) {
+        System.out.println("visitCall");
+        // 处理特殊情况arrayLength
         if (expr.isArrayLength) { // special case for array.length()
             var array = expr.func;
             array.accept(this, mv);
@@ -313,24 +349,39 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
             return;
         }
 
+        expr.func.accept(this, mv);
+
         expr.args.forEach(arg -> arg.accept(this, mv));
         var temps = new ArrayList<Temp>();
         expr.args.forEach(arg -> temps.add(arg.val));
-        if (expr.symbol.isStatic()) {
-            if (expr.symbol.type.returnType.isVoidType()) {
-                mv.visitStaticCall(expr.symbol.owner.name, expr.symbol.name, temps);
-            } else {
-                expr.val = mv.visitStaticCall(expr.symbol.owner.name, expr.symbol.name, temps, true);
+
+        var entry = mv.visitLoadFrom(expr.func.val, 0);
+        var parmnum = mv.visitLoadFrom(expr.func.val, 4);
+
+        var zero = mv.visitLoad(0);
+        var one = mv.visitLoad(1);
+        var four = mv.visitLoad(4);
+        var eight = mv.visitLoad(8);
+
+        var parmaddr = mv.visitBinary(TacInstr.Binary.Op.ADD, expr.func.val, eight);
+
+        Function<FuncVisitor, Temp> test = v -> v.visitBinary(TacInstr.Binary.Op.NEQ, parmnum, zero);
+        var body = new Consumer<FuncVisitor>() {
+            @Override
+            public void accept(FuncVisitor v) {
+                var parameter = v.visitLoadFrom(parmaddr);
+                v.visitBinarySelf(TacInstr.Binary.Op.ADD, parmaddr, four);//paramaddr++
+                v.visitBinarySelf(TacInstr.Binary.Op.SUB, parmnum, one);//num--
+                v.visitParm(parameter); // push stack
             }
-        } else {
-            var object = expr.func;
-            object.accept(this, mv);
-            if (expr.symbol.type.returnType.isVoidType()) {
-                mv.visitMemberCall(object.val, expr.symbol.owner.name, expr.symbol.name, temps);
-            } else {
-                expr.val = mv.visitMemberCall(object.val, expr.symbol.owner.name, expr.symbol.name, temps, true);
-            }
+        };
+        emitWhile(test, body, mv.freshLabel(), mv);
+
+
+        for (var arg : temps) {
+            mv.func.add(new TacInstr.Parm(arg));
         }
+        expr.val = mv.visitCall(entry, true);
     }
 
     @Override

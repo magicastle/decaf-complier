@@ -1,5 +1,7 @@
 package decaf.lowlevel.tac;
 
+import decaf.frontend.tree.Tree;
+import decaf.lowlevel.Mips;
 import decaf.lowlevel.label.FuncLabel;
 import decaf.lowlevel.label.Label;
 
@@ -15,10 +17,11 @@ public class ProgramWriter {
      *
      * @param classes basic info of classes declared in the program (warning: the arg will be modified by this method).
      */
-    public ProgramWriter(List<ClassInfo> classes) {
+    public ProgramWriter(List<ClassInfo> classes, List<Tree.Lambda> lambdas) {
         for (var clazz : classes) {
             this.classes.put(clazz.name, clazz);
         }
+        this.lambdas = lambdas;
     }
 
     /**
@@ -42,6 +45,34 @@ public class ProgramWriter {
         for (var clazz : classes.values()) {
             createConstructorFor(clazz.name);
         }
+
+        buildGlobalTables("Static_orz");
+
+        buildLambdaTable("Lambda_orz");
+    }
+
+    public void buildGlobalTables(String tableName){
+        var staticVtbl = new VTable(tableName, Optional.empty());
+        for (var clazz : classes.values()) {
+            for (var staticMethod : clazz.staticMethods) {
+                if (clazz.name.equals("Main") && staticMethod.equals("main"))
+                    continue;
+                staticVtbl.memberMethods.add(ctx.getFuncLabel(clazz.name, staticMethod));
+            }
+        }
+        ctx.putVTable(staticVtbl);
+        ctx.putOffsets(staticVtbl);
+    }
+
+    public void buildLambdaTable(String tableName){
+        var lambdaVtbl = new VTable(tableName, Optional.empty());
+        for(var lambda : lambdas){
+            ctx.putFuncLabel(tableName, "lambda" + lambda.pos);
+            var lambdaLabel = new FuncLabel(tableName, "lambda"+lambda.pos);
+            lambdaVtbl.memberMethods.add(lambdaLabel);
+        }
+        ctx.putVTable(lambdaVtbl);
+        ctx.putOffsets(lambdaVtbl);
     }
 
     /**
@@ -74,6 +105,8 @@ public class ProgramWriter {
     }
 
     private HashMap<String, ClassInfo> classes = new HashMap<>();
+
+    private List<Tree.Lambda> lambdas;
 
     private Context ctx = new Context();
 
@@ -146,7 +179,7 @@ public class ProgramWriter {
         ctx.putOffsets(vtbl);
     }
 
-    class Context {
+    public class Context {
 
         void putConstructorLabel(String clazz) {
             putFuncLabel(clazz, "new");
@@ -186,7 +219,7 @@ public class ProgramWriter {
             return new ArrayList<>(vtables.values());
         }
 
-        int getOffset(String clazz, String member) {
+        public int getOffset(String clazz, String member) {
             return offsets.get(clazz + "." + member);
         }
 

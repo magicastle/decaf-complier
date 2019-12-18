@@ -45,11 +45,11 @@ public class VTable {
     /**
      * Labels of all member methods.
      */
-    List<FuncLabel> memberMethods = new ArrayList<>();
+    public List<FuncLabel> memberMethods = new ArrayList<>();
 
     List<String> memberVariables = new ArrayList<>();
 
-    VTable(String className, Optional<VTable> parent) {
+    public VTable(String className, Optional<VTable> parent) {
         this.label = new VTableLabel(className);
         this.className = className;
         this.parent = parent;

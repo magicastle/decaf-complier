@@ -33,6 +33,8 @@ public abstract class Tree {
     public static class TopLevel extends TreeNode {
         // Tree elements
         public List<ClassDef> classes;
+
+        public List<Lambda> lambdas;
         // For type check
         public GlobalScope globalScope;
         public ClassSymbol mainClass;
@@ -1634,6 +1636,9 @@ public abstract class Tree {
         public String name;
         // For type check
         public LambdaSymbol symbol;
+
+        public List<VarSymbol> capture = new ArrayList<>();
+        public boolean inStatic = false;
 
         public Lambda(List<LocalVarDef> params, Expr expr, Block body, Pos pos) {
             super(Kind.LAMBDA, "Lambda", pos);

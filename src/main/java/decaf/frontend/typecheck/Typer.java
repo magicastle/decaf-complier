@@ -33,6 +33,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     public Tree.TopLevel transform(Tree.TopLevel tree) {
         var ctx = new ScopeStack(tree.globalScope);
         tree.accept(this, ctx);
+        tree.lambdas = lambdas;
         return tree;
     }
 
@@ -50,6 +51,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
         for (var clazz : program.classes) {
             clazz.accept(this, ctx);
         }
+        program.lambdas = lambdas;
     }
 
     @Override
@@ -391,14 +393,20 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
             if (symbol.isPresent()) {
                 if(!varListStack.contains(expr.name)){
                     if (symbol.get().isVarSymbol()) {
-                        var var = symbol.get();  //FLAG
-                        expr.symbol = var;
-                        expr.type = var.type;
-                        if (((VarSymbol)var).isMemberVar()) {
+                        var varsymbol = (VarSymbol)(symbol.get());  //FLAG
+                        expr.symbol = symbol.get();
+                        expr.type = symbol.get().type;
+                        if (varsymbol.isMemberVar()) {
                             if (ctx.currentMethod().isStatic()) {
                                 issue(new RefNonStaticError(expr.pos, ctx.currentMethod().name, expr.name));
                             } else {
                                 expr.setThis();
+                            }
+                        }else{
+                            for(var lambda : lambdaStack){//capture var
+                                if((varsymbol.pos).compareTo(lambda.pos) < 0){//before
+                                    lambda.capture.add(varsymbol);
+                                }
                             }
                         }
                         return;
@@ -549,7 +557,7 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
         call.type = ((FunType)(call.func.type)).returnType;
 
-        call.symbol = (MethodSymbol) ((Tree.VarSel)(call.func)).symbol;
+//        call.symbol = (MethodSymbol) ((Tree.VarSel)(call.func)).symbol;
 
         //访问参数列表
         var args = call.args;
@@ -637,6 +645,12 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
 
     @Override
     public void visitLambda(Tree.Lambda lambda, ScopeStack ctx){
+        lambdaStack.add(lambda);
+        lambdas.add(lambda);
+
+        var methodSymbol = ctx.currentMethod();
+        lambda.inStatic = methodSymbol.isStatic();
+
         if(lambda.expr != null){
             ctx.open(lambda.symbol.lambdaScope);
             ctx.open(lambda.symbol.localScope);
@@ -814,4 +828,8 @@ public class Typer extends Phase<Tree.TopLevel, Tree.TopLevel> implements TypeLi
     private  List<List<Type>> typeListStack = new ArrayList<List<Type>>();
 
     private List<String> varListStack = new ArrayList<String>();
+
+    private List<Tree.Lambda> lambdaStack = new ArrayList<>();
+
+    List<Tree.Lambda> lambdas = new ArrayList<>();
 }
