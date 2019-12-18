@@ -276,7 +276,7 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
 
     @Override
     default void visitVarSel(Tree.VarSel expr, FuncVisitor mv) {
-        System.out.println("visitVarsel");
+//        System.out.println("visitVarsel");
         if(expr.symbol.isVarSymbol()){
             var symbol = (VarSymbol)expr.symbol;
             if (symbol.isMemberVar()) {
@@ -291,15 +291,17 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
             var symbol = (MethodSymbol)expr.symbol;
             if (symbol.isMemberMethod()) {
                 if (symbol.isStatic()) {
-                    System.out.println("Static");
+//                    System.out.println("Static");
                     var vtbl = mv.visitLoadVTable("Static_orz");
-                    var entry = mv.visitLoadFrom(vtbl, mv.ctx.getOffset("Static_orz", expr.name));
+//                    System.out.println("aaaaaaaaaa "+"  expr.owner name:"+symbol.owner.name+"  expr.name:"+expr.name);
+//                    System.out.println("aaaaaaaaaaa offset :"+mv.ctx.getOffsetForStaticVtlb("Static_orz",symbol.owner.name , expr.name));
+                    var entry = mv.visitLoadFrom(vtbl, mv.ctx.getOffsetForStaticVtlb("Static_orz",symbol.owner.name ,expr.name));
                     var memory = mv.visitIntrinsicCall(Intrinsic.ALLOCATE, true, mv.visitLoad(8));
                     mv.visitStoreTo(memory, 0, entry);
                     mv.visitStoreTo(memory, 4, mv.visitLoad(0));
                     expr.val = memory;
                 } else {
-                    System.out.println("notStatic");
+//                    System.out.println("notStatic");
                     expr.receiver.get().accept(this, mv);
                     var object = expr.receiver.get().val;
                     var vtbl = mv.visitLoadFrom(object);
@@ -340,7 +342,7 @@ public interface TacEmitter extends Visitor<FuncVisitor> {
 
     @Override
     default void visitCall(Tree.Call expr, FuncVisitor mv) {
-        System.out.println("visitCall");
+//        System.out.println("visitCall");
         // 处理特殊情况arrayLength
         if (expr.isArrayLength) { // special case for array.length()
             var array = expr.func;

@@ -61,7 +61,7 @@ public class ProgramWriter {
             }
         }
         ctx.putVTable(staticVtbl);
-        ctx.putOffsets(staticVtbl);
+        ctx.putOffsetsForStaticVtlb(staticVtbl);
     }
 
     public void buildLambdaTable(String tableName){
@@ -237,6 +237,27 @@ public class ProgramWriter {
                 offsets.put(prefix + variable, offset);
                 offset += 4;
             }
+        }
+
+        void putOffsetsForStaticVtlb(VTable vtbl) {
+            var prefix = vtbl.className + ".";
+
+            var offset = 8;
+            for (var l : vtbl.memberMethods) {
+//                System.out.println("key !!!!!!!!!!!!!!!!! "+prefix + l.clazz+"."+l.method);
+                offsets.put(prefix + l.clazz+"."+l.method, offset);
+                offset += 4;
+            }
+
+            offset = 4;
+            for (var variable : vtbl.memberVariables) {
+                offsets.put(prefix + variable, offset);
+                offset += 4;
+            }
+        }
+        public int getOffsetForStaticVtlb(String vtlbName, String clazz, String member) {
+//            System.out.println("get key !!!!!!!!!!!!!!!! "+vtlbName+"."+ clazz + "." + member);
+            return offsets.get(vtlbName+"."+ clazz + "." + member);
         }
 
         private Map<String, FuncLabel> labels = new TreeMap<>();
