@@ -20,7 +20,6 @@ IDENTIFIER   AND         OR          STATIC      INSTANCE_OF
 LESS_EQUAL   GREATER_EQUAL           EQUAL       NOT_EQUAL
 '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
-ABSTRACT     VAR    FUN   EQUAL_GREATER
 
 %%
 
@@ -44,13 +43,9 @@ ClassList       :   ClassDef ClassList
                     }
                 ;
 
-ClassDef        :   ABSTRACT CLASS Id ExtendsClause '{' FieldList '}'
+ClassDef        :   CLASS Id ExtendsClause '{' FieldList '}'
                     {
-                        $$ = svClass(new ClassDef($3.id, Optional.ofNullable($4.id), $6.fieldList, $2.pos, true));
-                    }
-                |   CLASS Id ExtendsClause '{' FieldList '}'
-                    {
-                        $$ = svClass(new ClassDef($2.id, Optional.ofNullable($3.id), $5.fieldList, $1.pos, false));
+                        $$ = svClass(new ClassDef($2.id, Optional.ofNullable($3.id), $5.fieldList, $1.pos));
                     }
                 ;
 
@@ -64,21 +59,16 @@ ExtendsClause   :   EXTENDS Id
                     }
                 ;
 
-FieldList       :   ABSTRACT Type Id '(' VarList ')' ';' FieldList
+FieldList       :   STATIC Type Id '(' VarList ')' Block FieldList
                     {
                         $$ = $8;
-                        $$.fieldList.add(0, new MethodDef(true, false, $3.id, $2.type, $5.varList, null, $3.pos));
-                    }
-                |   STATIC Type Id '(' VarList ')' Block FieldList
-                    {
-                        $$ = $8;
-                        $$.fieldList.add(0, new MethodDef(false, true, $3.id, $2.type, $5.varList, $7.block, $3.pos));
+                        $$.fieldList.add(0, new MethodDef(true, $3.id, $2.type, $5.varList, $7.block, $3.pos));
                     }
                 |   Type Id AfterIdField FieldList
                     {
                         $$ = $4;
                         if ($3.varList != null) {
-                            $$.fieldList.add(0, new MethodDef(false, false, $2.id, $1.type, $3.varList, $3.block, $2.pos));
+                            $$.fieldList.add(0, new MethodDef(false, $2.id, $1.type, $3.varList, $3.block, $2.pos));
                         } else {
                             $$.fieldList.add(0, new VarDef($1.type, $2.id, $2.pos));
                         }
@@ -153,64 +143,26 @@ AtomType        :   INT
                     }
                 ;
 
-Type            :   AtomType ArrayFunType
+Type            :   AtomType ArrayType
                     {
                         $$ = $1;
-                        for (var sv: $2.thunkList) {
-                            if(sv.typeList != null) {
-                                $$.type = new TLambda($1.type, sv.typeList, $1.pos);
-                            }
-                            else {
-                                $$.type = new TArray($$.type, $1.type.pos);
-                            }
+                        for (int i = 0; i < $2.intVal; i++) {
+                            $$.type = new TArray($$.type, $1.type.pos);
                         }
                     }
                 ;
 
-ArrayFunType       :   '[' ']' ArrayFunType
+ArrayType       :   '[' ']' ArrayType
                     {
-                        var sv = new SemValue();
                         $$ = $3;
-                        $$.thunkList.add(0, sv);
-                    }
-                |   '(' TypeList ')' ArrayFunType
-                    {
-                        var sv = new SemValue();
-                        sv.typeList = $2.typeList;
-                        $$ = $4;
-                        $$.thunkList.add(0, sv);
+                        $$.intVal++;
                     }
                 |   /* empty */
                     {
                         $$ = new SemValue();
-                        $$.thunkList = new ArrayList<>();
+                        $$.intVal = 0; // counter
                     }
                 ;
-
-
-TypeList        :   Type TypeList1
-                    {
-                        $$ = $2;
-                        $$.typeList.add(0, $1.type);
-                    }
-                |   /* empty */
-                    {
-                        $$ = svTypes();
-                    }
-                ;
-
-
-TypeList1       :   ',' Type TypeList1
-                    {
-                        $$ = $3;
-                        $$.typeList.add(0, $2.type);
-                    }
-                |   /* empty */
-                    {
-                        $$ = svTypes();
-                    }
-                ;
-
 
 // Statements
 
@@ -287,10 +239,6 @@ SimpleStmt      :   Var Initializer
                         } else {
                             $$ = svStmt(new ExprEval($1.expr, $1.pos));
                         }
-                    }
-                |   VAR Id '=' Expr
-                    {
-                        $$ = svStmt(new LocalVarDef(null, $2.id, $3.pos, Optional.ofNullable($4.expr), $2.pos));
                     }
                 |   /* empty */
                     {
@@ -441,20 +389,8 @@ Expr            :   Expr1
                     {
                         $$ = $1;
                     }
-                |   FUN '(' VarList ')' Lambda
-                    {
-                        $$ = svExpr(new Lambda($3.varList, $5.expr, $5.block, $1.pos));
-                    }
                 ;
-Lambda          :   Block
-                    {
-                        $$ = $1;
-                    }
-                |   EQUAL_GREATER Expr
-                    {
-                        $$ = $2;
-                    }
-                ;
+
 Expr1           :   Expr2 ExprT1
                     {
                         $$ = buildBinaryExpr($1, $2.thunkList);
@@ -618,7 +554,7 @@ AfterLParen     :   CLASS Id ')' Expr7
                             if (sv.expr != null) {
                                 $$ = svExpr(new IndexSel($$.expr, sv.expr, sv.pos));
                             } else if (sv.exprList != null) {
-                                $$ = svExpr(new Call($$.expr, sv.exprList, sv.pos));
+                                $$ = svExpr(new Call($$.expr, sv.id, sv.exprList, sv.pos));
                             } else {
                                 $$ = svExpr(new VarSel($$.expr, sv.id, sv.pos));
                             }
@@ -629,12 +565,12 @@ AfterLParen     :   CLASS Id ')' Expr7
 
 Expr8           :   Expr9 ExprT8
                     {
-                      $$ = $1;
-                     for (var sv : $2.thunkList) {
+                        $$ = $1;
+                        for (var sv : $2.thunkList) {
                             if (sv.expr != null) {
                                 $$ = svExpr(new IndexSel($$.expr, sv.expr, sv.pos));
                             } else if (sv.exprList != null) {
-                                $$ = svExpr(new Call($$.expr, sv.exprList, sv.pos));
+                                $$ = svExpr(new Call($$.expr, sv.id, sv.exprList, sv.pos));
                             } else {
                                 $$ = svExpr(new VarSel($$.expr, sv.id, sv.pos));
                             }
@@ -652,27 +588,34 @@ ExprT8          :   '[' Expr ']' ExprT8
                         $$ = $4;
                         $$.thunkList.add(0, sv);
                     }
-                |   '.' Id ExprT8
+                |   '.' Id ExprListOpt ExprT8
                     {
                         var sv = new SemValue();
                         sv.id = $2.id;
                         sv.pos = $2.pos;
+                        if ($3.exprList != null) {
+                            sv.exprList = $3.exprList;
+                            sv.pos = $3.pos;
+                        }
 
-                        $$ = $3;
+                        $$ = $4;
                         $$.thunkList.add(0, sv);
-                    }
-                |   '(' ExprList ')' ExprT8
-                    {
-                        var sv =new SemValue();
-                        sv.exprList = $2.exprList;
-                        sv.pos =$1.pos;
-                        $$ =$4;
-                        $$.thunkList.add(0,sv);
                     }
                 |   /* empty */
                     {
                         $$ = new SemValue();
                         $$.thunkList = new ArrayList<>();
+                    }
+                ;
+
+ExprListOpt     :   '(' ExprList ')'
+                    {
+                        $$ = $2;
+                        $$.pos = $1.pos;
+                    }
+                |   /* empty */
+                    {
+                        $$ = new SemValue();
                     }
                 ;
 
@@ -704,9 +647,13 @@ Expr9           :   Literal
                             $$ = svExpr(new NewArray($2.type, $2.expr, $1.pos));
                         }
                     }
-                |   Id
+                |   Id ExprListOpt
                     {
-                        $$ = svExpr(new VarSel($1.id, $1.pos));
+                        if ($2.exprList != null) {
+                            $$ = svExpr(new Call($1.id, $2.exprList, $2.pos));
+                        } else {
+                            $$ = svExpr(new VarSel($1.id, $1.pos));
+                        }
                     }
                 ;
 

@@ -14,7 +14,6 @@ public final class PrettyScope extends PrettyPrinter<Scope> {
 
     @Override
     public void pretty(Scope scope) {
-        if(scope != null)//null???
         if (scope.isGlobalScope()) {
             var globalScope = (GlobalScope) scope;
             printer.println("GLOBAL SCOPE:");
@@ -46,14 +45,6 @@ public final class PrettyScope extends PrettyPrinter<Scope> {
             if (scope.isEmpty()) printer.println("<empty>");
             else scope.forEach(printer::println);
             localScope.nestedLocalScopes().forEach(this::pretty);
-            printer.decIndent();
-        }else if(scope.isLambdaScope()){
-            var lambdaScope = (LambdaScope) scope;
-            printer.formatLn("FORMAL SCOPE OF '%s':", lambdaScope.getOwner().name);
-            printer.incIndent();
-            if (scope.isEmpty()) printer.println("<empty>");
-            else scope.forEach(printer::println);
-            pretty(lambdaScope.nestedLocalScope());
             printer.decIndent();
         }
     }

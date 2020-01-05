@@ -16,7 +16,6 @@ import java.util.TreeSet;
  * The alternative parser phase.
  */
 public class LLParser extends Phase<InputStream, Tree.TopLevel> {
-    boolean hasError = false;
 
     public LLParser(Config config) {
         super("parser-ll", config);
@@ -101,10 +100,6 @@ public class LLParser extends Phase<InputStream, Tree.TopLevel> {
                 case Tokens.GREATER_EQUAL -> GREATER_EQUAL;
                 case Tokens.EQUAL -> EQUAL;
                 case Tokens.NOT_EQUAL -> NOT_EQUAL;
-                case Tokens.ABSTRACT -> ABSTRACT;
-                case Tokens.VAR -> VAR;
-                case Tokens.FUN -> FUN;
-                case Tokens.EQUAL_GREATER -> EQUAL_GREATER;
                 default -> code; // single-character, use their ASCII code!
             };
         }
@@ -120,26 +115,8 @@ public class LLParser extends Phase<InputStream, Tree.TopLevel> {
          */
         private SemValue parseSymbol(int symbol, Set<Integer> follow) {
             var result = query(symbol, token); // get production by lookahead symbol
-
-            // obtain the Begin and End set of current non-terminate symbol
-            var begin = beginSet(symbol);
-            var end = followSet(symbol);
-            end.addAll(follow);
-
-            if(!begin.contains(token)) {
-                hasError = true;
-                yyerror("syntax error");
-                while (true){
-                    if(begin.contains(token)){
-                        result = query(symbol, token);
-                        break;
-                    }else if(end.contains(token)){
-                        return null;
-                    }
-                    token = nextToken();
-                }
-            }
             var actionId = result.getKey(); // get user-defined action
+
             var right = result.getValue(); // right-hand side of production
             var length = right.size();
             var params = new SemValue[length + 1];
@@ -147,13 +124,12 @@ public class LLParser extends Phase<InputStream, Tree.TopLevel> {
             for (var i = 0; i < length; i++) { // parse right-hand side symbols one by one
                 var term = right.get(i);
                 params[i + 1] = isNonTerminal(term)
-                        ? parseSymbol(term, end) // for non terminals: recursively parse it
+                        ? parseSymbol(term, follow) // for non terminals: recursively parse it
                         : matchToken(term) // for terminals: match token
                 ;
             }
-            params[0] = new SemValue();
-            if (!hasError)
-                act(actionId, params); // do user-defined action
+
+            act(actionId, params); // do user-defined action
             return params[0];
         }
 

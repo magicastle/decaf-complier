@@ -35,10 +35,6 @@ public interface Tokens {
     int GREATER_EQUAL = 28;
     int EQUAL = 29;
     int NOT_EQUAL = 30;
-    int ABSTRACT = 31;
-    int VAR = 32;
-    int FUN = 33;
-    int EQUAL_GREATER= 34;
 
     // MUST use ASCII code to encode a single-character token.
     // '!' (code=33)

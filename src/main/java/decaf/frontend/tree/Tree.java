@@ -2,7 +2,9 @@ package decaf.frontend.tree;
 
 import decaf.frontend.scope.GlobalScope;
 import decaf.frontend.scope.LocalScope;
-import decaf.frontend.symbol.*;
+import decaf.frontend.symbol.ClassSymbol;
+import decaf.frontend.symbol.MethodSymbol;
+import decaf.frontend.symbol.VarSymbol;
 import decaf.frontend.type.FunType;
 import decaf.frontend.type.Type;
 import decaf.lowlevel.instr.Temp;
@@ -23,8 +25,7 @@ public abstract class Tree {
         T_INT, T_BOOL, T_STRING, T_VOID, T_CLASS, T_ARRAY,
         LOCAL_VAR_DEF, BLOCK, ASSIGN, EXPR_EVAL, SKIP, IF, WHILE, FOR, BREAK, RETURN, PRINT,
         INT_LIT, BOOL_LIT, STRING_LIT, NULL_LIT, VAR_SEL, INDEX_SEL, CALL,
-        THIS, UNARY_EXPR, BINARY_EXPR, READ_INT, READ_LINE, NEW_CLASS, NEW_ARRAY, CLASS_TEST, CLASS_CAST,
-        LAMBDA, T_LAMBDA,
+        THIS, UNARY_EXPR, BINARY_EXPR, READ_INT, READ_LINE, NEW_CLASS, NEW_ARRAY, CLASS_TEST, CLASS_CAST
     }
 
     /**
@@ -33,8 +34,6 @@ public abstract class Tree {
     public static class TopLevel extends TreeNode {
         // Tree elements
         public List<ClassDef> classes;
-
-        public List<Lambda> lambdas;
         // For type check
         public GlobalScope globalScope;
         public ClassSymbol mainClass;
@@ -71,7 +70,6 @@ public abstract class Tree {
      */
     public static class ClassDef extends TreeNode {
         // Tree elements
-        public Modifiers modifiers;
         public final Id id;
         public Optional<Id> parent;
         public final List<Field> fields;
@@ -81,21 +79,13 @@ public abstract class Tree {
         public ClassDef superClass;
         public ClassSymbol symbol;
         public boolean resolved = false;
-        //my
-        public boolean isAbstract = false;
 
-        public ClassDef(Id id, Optional<Id> parent, List<Field> fields, Pos pos, boolean is_Abstract) {
+        public ClassDef(Id id, Optional<Id> parent, List<Field> fields, Pos pos) {
             super(Kind.CLASS_DEF, "ClassDef", pos);
             this.id = id;
             this.parent = parent;
             this.fields = fields;
             this.name = id.name;
-            if (is_Abstract){
-                isAbstract = true;
-                this.modifiers = new Modifiers(Modifiers.ABSTRACT, pos);
-            }
-            else
-                this.modifiers = new Modifiers();
         }
 
         public boolean hasParent() {
@@ -115,17 +105,16 @@ public abstract class Tree {
         @Override
         public Object treeElementAt(int index) {
             return switch (index) {
-                case 0 -> modifiers;
-                case 1 -> id;
-                case 2 -> parent;
-                case 3 -> fields;
+                case 0 -> id;
+                case 1 -> parent;
+                case 2 -> fields;
                 default -> throw new IndexOutOfBoundsException(index);
             };
         }
 
         @Override
         public int treeArity() {
-            return 4;
+            return 3;
         }
 
         @Override
@@ -209,24 +198,19 @@ public abstract class Tree {
         public FunType type;
         public MethodSymbol symbol;
 
-        public MethodDef(boolean isAbstract, boolean isStatic, Id id, TypeLit returnType, List<LocalVarDef> params, Block body, Pos pos) {
+        public MethodDef(boolean isStatic, Id id, TypeLit returnType, List<LocalVarDef> params, Block body, Pos pos) {
             super(Kind.METHOD_DEF, "MethodDef", pos);
-//            this.modifiers = isStatic ? new Modifiers(Modifiers.STATIC, pos) : new Modifiers();
+            this.modifiers = isStatic ? new Modifiers(Modifiers.STATIC, pos) : new Modifiers();
             this.id = id;
             this.returnType = returnType;
             this.params = params;
             this.body = body;
             this.name = id.name;
-            if (isStatic)
-                this.modifiers = new Modifiers(Modifiers.STATIC, pos);
-            else if (isAbstract)
-                this.modifiers = new Modifiers(Modifiers.ABSTRACT, pos);
-            else
-                this.modifiers = new Modifiers();
         }
 
-        public boolean isStatic() { return modifiers.isStatic(); }
-        public boolean isAbstract() { return modifiers.isAbstract(); }
+        public boolean isStatic() {
+            return modifiers.isStatic();
+        }
 
         @Override
         public Object treeElementAt(int index) {
@@ -235,7 +219,7 @@ public abstract class Tree {
                 case 1 -> id;
                 case 2 -> returnType;
                 case 3 -> params;
-                case 4 -> isAbstract() ? Optional.empty():body;
+                case 4 -> body;
                 default -> throw new IndexOutOfBoundsException(index);
             };
         }
@@ -446,8 +430,6 @@ public abstract class Tree {
          */
         public boolean returns = false;
 
-        public boolean isClose = false;
-
         public boolean isBlock() {
             return false;
         }
@@ -468,7 +450,6 @@ public abstract class Tree {
         public Optional<Expr> initVal;
         // For convenience
         public String name;
-        public boolean var=false;
         // For type check
         public VarSymbol symbol;
 
@@ -476,10 +457,7 @@ public abstract class Tree {
             // pos = id.pos, assignPos = position of the '='
             // TODO: looks not very consistent, maybe we shall always report error simply at `pos`, not `assignPos`?
             super(Kind.LOCAL_VAR_DEF, "LocalVarDef", pos);
-//            this.typeLit = typeLit;
-            if(typeLit==null)var=true;
-            else
-                this.typeLit = typeLit;
+            this.typeLit = typeLit;
             this.id = id;
             this.assignPos = assignPos;
             this.initVal = initVal;
@@ -493,7 +471,7 @@ public abstract class Tree {
         @Override
         public Object treeElementAt(int index) {
             return switch (index) {
-                case 0 -> var==true? Optional.empty():typeLit;
+                case 0 -> typeLit;
                 case 1 -> id;
                 case 2 -> initVal;
                 default -> throw new IndexOutOfBoundsException(index);
@@ -902,7 +880,6 @@ public abstract class Tree {
         public Type type;
         // For tac gen
         public Temp val;
-        public boolean isLambda = false;
 
         public Expr(Kind kind, String displayName, Pos pos) {
             super(kind, displayName, pos);
@@ -1051,11 +1028,8 @@ public abstract class Tree {
         // For convenience
         public String name;
         // For type check
-        public Symbol symbol;
-//        public VarSymbol symbol;
+        public VarSymbol symbol;
         public boolean isClassName = false;
-        public boolean isMemberMethodName = false;
-        public boolean isArrayLength = false;
 
         public VarSel(Optional<Expr> receiver, Id variable, Pos pos) {
             super(Kind.VAR_SEL, "VarSel", pos);
@@ -1500,30 +1474,30 @@ public abstract class Tree {
      */
     public static class Call extends Expr {
         // Tree elements
-        public Expr func;
+        public Optional<Expr> receiver;
+        public Id method;
         public List<Expr> args;
-
         //
         public String methodName;
         // For type check
         public MethodSymbol symbol;
         public boolean isArrayLength = false;
 
-        public Call(Expr expr, List<Expr> args, Pos pos) {
+        public Call(Optional<Expr> receiver, Id method, List<Expr> args, Pos pos) {
             super(Kind.CALL, "Call", pos);
-            this.func =expr;
-//            this.method = method;
+            this.receiver = receiver;
+            this.method = method;
             this.args = args;
-//            this.methodName = method.name;
+            this.methodName = method.name;
         }
 
-//        public Call(Id method, List<Expr> args, Pos pos) {
-//            this(Optional.empty(), method, args, pos);
-//        }
-//
-//        public Call(Expr receiver, Id method, List<Expr> args, Pos pos) {
-//            this(Optional.of(receiver), method, args, pos);
-//        }
+        public Call(Id method, List<Expr> args, Pos pos) {
+            this(Optional.empty(), method, args, pos);
+        }
+
+        public Call(Expr receiver, Id method, List<Expr> args, Pos pos) {
+            this(Optional.of(receiver), method, args, pos);
+        }
 
         /**
          * Set its receiver as {@code this}.
@@ -1531,23 +1505,22 @@ public abstract class Tree {
          * Reversed for type check.
          */
         public void setThis() {
-            this.func = new This(pos);
+            this.receiver = Optional.of(new This(pos));
         }
 
         @Override
         public Object treeElementAt(int index) {
             return switch (index) {
-                case 0 -> func;
-//                case 1 -> method;
-//                case 2 -> args;
-                case 1 -> args;
+                case 0 -> receiver;
+                case 1 -> method;
+                case 2 -> args;
                 default -> throw new IndexOutOfBoundsException(index);
             };
         }
 
         @Override
         public int treeArity() {
-            return 2;
+            return 3;
         }
 
         @Override
@@ -1593,31 +1566,20 @@ public abstract class Tree {
 
         // Available modifiers:
         public static final int STATIC = 1;
-        public static final int ABSTRACT = 2;
 
         public Modifiers(int code, Pos pos) {
             this.code = code;
             this.pos = pos;
             flags = new ArrayList<>();
-//            if (isStatic()) flags.add("STATIC");
-            if (code==1) flags.add("STATIC");
-            if (code==2) flags.add("ABSTRACT");
+            if (isStatic()) flags.add("STATIC");
         }
 
         public Modifiers() {
             this(0, Pos.NoPos);
         }
 
-//        public boolean isStatic() {
-//            return (code & 1) == 1;
-//        }
         public boolean isStatic() {
-            if(code==1)return true;
-            return false;
-        }
-        public boolean isAbstract() {
-            if(code==2)return true;
-            return false;
+            return (code & 1) == 1;
         }
 
         @Override
@@ -1625,79 +1587,4 @@ public abstract class Tree {
             return String.join(" ", flags);
         }
     }
-
-    public static class Lambda extends Expr
-    {
-        // Tree elements
-        public List<LocalVarDef> params;
-        public Expr expr;
-        public Block body;
-        // For convenience
-        public String name;
-        // For type check
-        public LambdaSymbol symbol;
-
-        public List<VarSymbol> capture = new ArrayList<>();
-        public boolean inStatic = false;
-
-        public Lambda(List<LocalVarDef> params, Expr expr, Block body, Pos pos) {
-            super(Kind.LAMBDA, "Lambda", pos);
-            this.params = params;
-            this.expr = expr;
-            this.body = body;
-        }
-
-        @Override
-        public Object treeElementAt(int index) {
-            return switch (index) {
-                case 0 -> params;
-                case 1 -> ( expr == null ) ? body : expr;
-                default -> throw new IndexOutOfBoundsException(index);
-            };
-        }
-
-        @Override
-        public int treeArity() {
-            return 2;
-        }
-
-        @Override
-        public <C> void accept(Visitor<C> v, C ctx) {
-            v.visitLambda(this, ctx);
-        }
-
-    }
-
-    public static class TLambda extends TypeLit {
-        // Tree element
-        public TypeLit returnType;
-        public List<TypeLit> params;
-
-        public TLambda(TypeLit typeLit, List<TypeLit> params, Pos pos) {
-            super(Kind.T_LAMBDA, "TLambda", pos);
-            this.returnType = typeLit;
-            this.params = params;
-        }
-
-        @Override
-        public Object treeElementAt(int index) {
-            return switch (index) {
-                case 0 -> returnType;
-                case 1 -> params;
-                default -> throw new IndexOutOfBoundsException(index);
-            };
-        }
-
-        @Override
-        public int treeArity() {
-            return 2;
-        }
-
-        @Override
-        public <C> void accept(Visitor<C> v, C ctx) {
-            v.visitTLambda(this, ctx);
-        }
-    }
 }
-
-

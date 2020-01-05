@@ -108,8 +108,8 @@ public final class Simulator {
         _halt = false;
 
         while (!_call_stack.isEmpty()) {
-            if (count >= 100000) {
-                throw new Error("Max instruction limitation 10,0000 exceeds, maybe your program cannot terminate?");
+            if (count >= 10000000) {
+                throw new Error("Max instruction limitation 10,000000 exceeds, maybe your program cannot terminate?");
             }
 
             if (_halt) {
@@ -329,7 +329,9 @@ public final class Simulator {
             // Recover caller's state, if the caller exists
             if (!_call_stack.isEmpty()) {
                 var frame = _call_stack.peek();
-                value.ifPresent(v -> frame.array[frame.retValDst.index] = v);
+                if(frame.retValDst!=null){
+                    value.ifPresent(v -> frame.array[frame.retValDst.index] = v);
+                }
                 _pc = _call_stack.peek().pcNext;
             } // else: the entire program terminates
         }

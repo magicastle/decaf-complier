@@ -28,7 +28,7 @@ public class TacFunc implements Comparable<TacFunc> {
 
     int tempUsed;
 
-    public void add(TacInstr instr) {
+    void add(TacInstr instr) {
         instrSeq.add(instr);
     }
 

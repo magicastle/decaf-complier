@@ -3,7 +3,7 @@ package decaf.driver.error;
 import decaf.frontend.tree.Pos;
 
 /**
- * example:'orz' is not a method in class 'Person'<br>
+ * example：'orz' is not a method in class 'Person'<br>
  * PA2
  */
 public class NotClassMethodError extends DecafError {

@@ -42,7 +42,7 @@ public final class VarSymbol extends Symbol {
     }
 
     public boolean isParam() {
-        return definedIn.isFormalScope() ||definedIn.isLambdaScope();
+        return definedIn.isFormalScope();
     }
 
     public boolean isMemberVar() {

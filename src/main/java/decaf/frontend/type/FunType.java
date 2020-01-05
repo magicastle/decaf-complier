@@ -7,7 +7,7 @@ import java.util.List;
  */
 public final class FunType extends Type {
 
-    public  Type returnType;
+    public final Type returnType;
 
     public final List<Type> argTypes;
 

@@ -26,6 +26,8 @@ public abstract class PseudoInstr {
         LABEL, SEQ, JMP, COND_JMP, RET
     }
 
+    public boolean unused = false; 
+
     public final Kind kind;
 
     /**

@@ -60,13 +60,13 @@ public class LivenessAnalyzer<I extends PseudoInstr> implements Consumer<CFG<I>>
         bb.liveUse = new TreeSet<>();
 
         for (var loc : bb) {
-            bb.def.addAll(loc.instr.getWritten());
             for (var read : loc.instr.getRead()) {
                 if (!bb.def.contains(read)) {
                     // used before being assigned to a value
                     bb.liveUse.add(read);
                 }
             }
+            bb.def.addAll(loc.instr.getWritten());
         }
     }
 
@@ -92,7 +92,11 @@ public class LivenessAnalyzer<I extends PseudoInstr> implements Consumer<CFG<I>>
             loc.liveOut = new TreeSet<>(liveOut);
             // Order is important here, because in an instruction, one temp can be both read and written, e.g.
             // in `_T1 = _T1 + _T2`, `_T1` must be alive before execution.
-            liveOut.removeAll(loc.instr.getWritten());
+            // System.out.println("loc.instr.getWritten()"+(loc.instr.getWritten().isEmpty()));
+            if(!loc.instr.getWritten().isEmpty() && liveOut.removeAll(loc.instr.getWritten())==false){
+                System.out.println("!!!!!!!!!!!!!"+loc.instr.toString());
+                loc.instr.unused = true;
+            }
             liveOut.addAll(loc.instr.getRead());
             loc.liveIn = new TreeSet<>(liveOut);
         }

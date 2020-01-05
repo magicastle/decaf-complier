@@ -427,7 +427,7 @@ public abstract class TacInstr extends PseudoInstr {
      * </pre>
      */
     public static class IndirectCall extends TacInstr {
-        public final Optional<Temp> dst;
+        public Optional<Temp> dst;
         public final Temp entry;
 
         public IndirectCall(Temp dst, Temp entry) {
@@ -463,7 +463,7 @@ public abstract class TacInstr extends PseudoInstr {
      * </pre>
      */
     public static class DirectCall extends TacInstr {
-        public final Optional<Temp> dst;
+        public Optional<Temp> dst;
         public final Label entry;
 
         public DirectCall(Temp dst, Label entry) {

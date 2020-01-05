@@ -359,21 +359,6 @@ public class FuncVisitor {
         func.add(instr);
     }
 
-    public Temp visitCall(Temp address, boolean needReturn) {
-        Temp temp = null;
-        if (needReturn) {
-            temp = freshTemp();
-            func.add(new TacInstr.IndirectCall(temp, address));
-        } else {
-            func.add(new TacInstr.IndirectCall(address));
-        }
-        return temp;
-    }
-
-    public void visitParm(Temp parm) {
-        func.add(new TacInstr.Parm(parm));
-    }
-
     /**
      * Call this when all instructions in this function are done.
      */
@@ -438,9 +423,9 @@ public class FuncVisitor {
         }
     }
 
-    public TacFunc func;
+    private TacFunc func;
 
-    public ProgramWriter.Context ctx;
+    private ProgramWriter.Context ctx;
 
     private int nextTempId = 0;
 

@@ -13,19 +13,17 @@ import java.util.*;
  *     <li>class scope: stores class members</li>
  *     <li>formal scope: stores parameters</li>
  *     <li>local scope: stores locally-defined variables</li>
- *     <li>lambda scope: stores lambda paramters</li>
  * </ul>
  *
  * @see GlobalScope
  * @see ClassScope
  * @see FormalScope
  * @see LocalScope
- * @see LambdaScope
  */
 public abstract class Scope implements Iterable<Symbol> {
 
     public enum Kind {
-        GLOBAL, CLASS, FORMAL, LOCAL, LAMBDA
+        GLOBAL, CLASS, FORMAL, LOCAL
     }
 
     public final Kind kind;
@@ -101,12 +99,8 @@ public abstract class Scope implements Iterable<Symbol> {
         return false;
     }
 
-    public boolean isLambdaScope(){
-        return false;
-    }
-
-    public boolean isFormalOrLocalOrLambdaScope() {
-        return isFormalScope() || isLocalScope() || isLambdaScope();
+    public boolean isFormalOrLocalScope() {
+        return isFormalScope() || isLocalScope();
     }
 
     protected Map<String, Symbol> symbols = new TreeMap<>();
