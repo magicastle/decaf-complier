@@ -94,7 +94,7 @@ public class LivenessAnalyzer<I extends PseudoInstr> implements Consumer<CFG<I>>
             // in `_T1 = _T1 + _T2`, `_T1` must be alive before execution.
             // System.out.println("loc.instr.getWritten()"+(loc.instr.getWritten().isEmpty()));
             if(!loc.instr.getWritten().isEmpty() && liveOut.removeAll(loc.instr.getWritten())==false){
-                System.out.println("!!!!!!!!!!!!!"+loc.instr.toString());
+                // System.out.println("!!!!!!!!!!!!!"+loc.instr.toString());
                 loc.instr.unused = true;
             }
             liveOut.addAll(loc.instr.getRead());

@@ -26,17 +26,13 @@ public class Optimizer extends Phase<TacProg, TacProg> {
 
     @Override
     public TacProg transform(TacProg input) {
-
         // for(var func: input.funcs){
         //     for(var instr : func.getInstrSeq()){
         //             System.out.println("instr:"+instr.toString()+"  "+instr.unused);
         //     }
         // }
-
         var analyzer = new LivenessAnalyzer<>();
-        
         for(int optimizenum=0;optimizenum<10;optimizenum++){
-
             for(var func: input.funcs){
                 var builder = new CFGBuilder<>();
                 var cfg = builder.buildFrom(new ArrayList<>(func.getInstrSeq()));
@@ -59,7 +55,6 @@ public class Optimizer extends Phase<TacProg, TacProg> {
                     }
                 }
             }
-
         }
         return input;
     }
